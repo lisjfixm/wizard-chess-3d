@@ -108,6 +108,85 @@ export function initWizardChess() {
       return tex;
     }
 
+    function randGaussian() {
+      let u = 0;
+      let v = 0;
+      while (u === 0) u = Math.random();
+      while (v === 0) v = Math.random();
+      return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    }
+
+    function createTailTexture() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 32;
+      const ctx = canvas.getContext('2d');
+      const grad = ctx.createLinearGradient(0, 0, 256, 0);
+      grad.addColorStop(0.0, 'rgba(255, 255, 255, 0.95)');
+      grad.addColorStop(0.25, 'rgba(255, 255, 255, 0.35)');
+      grad.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 256, 32);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function buildGalaxy(def) {
+      const { center, radius, points, inner, outer, tiltX, tiltZ, spin } = def;
+      const pos = new Float32Array(points * 3);
+      const col = new Float32Array(points * 3);
+      const cInner = new THREE.Color(inner);
+      const cOuter = new THREE.Color(outer);
+      const arms = 2;
+      for (let i = 0; i < points; i++) {
+        const t = Math.pow(Math.random(), 0.6);
+        const arm = i % arms;
+        const ang = arm * (Math.PI * 2 / arms) + t * spin + randGaussian() * 0.12;
+        const r = radius * (0.12 + 0.88 * t);
+        const x = r * Math.cos(ang);
+        const z = r * Math.sin(ang);
+        const y = randGaussian() * 0.3 * (1.1 - t * 0.6);
+        pos[i * 3] = x;
+        pos[i * 3 + 1] = y;
+        pos[i * 3 + 2] = z;
+        const c = cInner.clone().lerp(cOuter, t);
+        const bright = (1 - t * 0.35) * (0.7 + Math.random() * 0.5);
+        col[i * 3] = c.r * bright;
+        col[i * 3 + 1] = c.g * bright;
+        col[i * 3 + 2] = c.b * bright;
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      const mat = new THREE.PointsMaterial({
+        size: 0.18,
+        vertexColors: true,
+        transparent: true,
+        opacity: 1.0,
+        depthWrite: false,
+        sizeAttenuation: true
+      });
+      const disk = new THREE.Points(geo, mat);
+      const coreMat = new THREE.SpriteMaterial({
+        map: createNebulaTexture(),
+        color: inner,
+        transparent: true,
+        opacity: 0.9,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
+      });
+      const core = new THREE.Sprite(coreMat);
+      core.scale.set(radius * 0.5, radius * 0.5, 1);
+      const group = new THREE.Group();
+      group.add(disk);
+      group.add(core);
+      group.position.fromArray(center);
+      group.rotation.x = tiltX;
+      group.rotation.z = tiltZ;
+      return group;
+    }
+
     function createStarfieldGroup() {
       const group = new THREE.Group();
       const STAR_COUNT = 1700;
@@ -165,12 +244,127 @@ export function initWizardChess() {
         sp.scale.set(n.scale, n.scale, 1);
         group.add(sp);
       }
+
+      // ---- Spiral galaxies (point-cloud disks, warm core -> neon rim) ----
+      const galaxies = [];
+      const galaxyDefs = [
+        { center: [-18, 9, -30], radius: 9.0, points: 1400, inner: 0xfff3d6, outer: 0x4dd0e1, tiltX: 0.5, tiltZ: -0.25, spin: 3.2 },
+        { center: [19, -3, -28], radius: 7.5, points: 1100, inner: 0xfff3d6, outer: 0xe040fb, tiltX: -0.35, tiltZ: 0.4, spin: -3.0 },
+        { center: [2, 13, -34], radius: 4.5, points: 600, inner: 0xffffff, outer: 0x7ce8ff, tiltX: 0.2, tiltZ: 0.1, spin: 2.4 }
+      ];
+      for (const gdef of galaxyDefs) {
+        const galaxy = buildGalaxy(gdef);
+        galaxies.push(galaxy);
+        group.add(galaxy);
+      }
+
+      // ---- Meteor pool: bright head + fading tail, spawn on a timer ----
+      const tailTex = createTailTexture();
+      const meteors = [];
+      const METEOR_COUNT = 5;
+      for (let i = 0; i < METEOR_COUNT; i++) {
+        const headMat = new THREE.SpriteMaterial({ map: nebulaTex, color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+        const head = new THREE.Sprite(headMat);
+        head.scale.set(0.7, 0.7, 1);
+        const tailMat = new THREE.SpriteMaterial({ map: tailTex, color: 0x7ce8ff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+        const tail = new THREE.Sprite(tailMat);
+        tail.scale.set(4.2, 0.3, 1);
+        head.visible = false;
+        tail.visible = false;
+        group.add(head);
+        group.add(tail);
+        meteors.push({ head, tail, active: false, life: 0, maxLife: 1, vel: new THREE.Vector3(), wait: Math.random() * 4 });
+      }
+
+      // ---- Comets: soft coma + long faint tail on a slow orbit ----
+      const comets = [];
+      const cometDefs = [
+        { cx: 0, cy: 10, cz: -32, orbitR: 10, speed: 0.05, phase: 0, color: 0x7ce8ff, tailColor: 0x4dd0e1 },
+        { cx: -12, cy: -1, cz: -30, orbitR: 9, speed: -0.04, phase: 2.1, color: 0xffffff, tailColor: 0xe040fb }
+      ];
+      for (const cdef of cometDefs) {
+        const headMat = new THREE.SpriteMaterial({ map: nebulaTex, color: cdef.color, transparent: true, opacity: 0.95, depthWrite: false, blending: THREE.AdditiveBlending });
+        const head = new THREE.Sprite(headMat);
+        head.scale.set(1.2, 1.2, 1);
+        const tailMat = new THREE.SpriteMaterial({ map: tailTex, color: cdef.tailColor, transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending });
+        const tail = new THREE.Sprite(tailMat);
+        tail.scale.set(6.5, 0.65, 1);
+        group.add(head);
+        group.add(tail);
+        comets.push({ head, tail, ...cdef, angle: cdef.phase });
+      }
+
+      group.userData.galaxies = galaxies;
+      group.userData.meteors = meteors;
+      group.userData.comets = comets;
       group.visible = false;
       return group;
     }
 
     const starfieldGroup = createStarfieldGroup();
     scene.add(starfieldGroup);
+
+    function updateStarfieldBodies(dt) {
+      const bodies = starfieldGroup.userData;
+      if (bodies.galaxies) {
+        for (const g of bodies.galaxies) g.rotation.y += dt * 0.02;
+      }
+
+      if (bodies.meteors) {
+        for (const m of bodies.meteors) {
+          if (!m.active) {
+            m.wait -= dt;
+            if (m.wait > 0) continue;
+            m.head.position.set(
+              (Math.random() - 0.5) * 44,
+              -4 + Math.random() * 18,
+              -18 - Math.random() * 16
+            );
+            m.vel.set(
+              (Math.random() - 0.5) * 2,
+              -0.25 - Math.random() * 0.35,
+              (Math.random() - 0.5) * 0.4
+            )
+              .normalize()
+              .multiplyScalar(10 + Math.random() * 8);
+            m.life = 0;
+            m.maxLife = 0.7 + Math.random() * 0.6;
+            m.active = true;
+            m.head.visible = true;
+            m.tail.visible = true;
+            continue;
+          }
+          m.life += dt;
+          m.head.position.addScaledVector(m.vel, dt);
+          const k = Math.min(1, m.life / m.maxLife);
+          const fade = Math.sin(k * Math.PI);
+          m.head.material.opacity = fade;
+          m.tail.position.copy(m.head.position).addScaledVector(m.vel, -0.22);
+          m.tail.material.rotation = Math.atan2(m.vel.y, m.vel.x);
+          m.tail.material.opacity = fade * 0.7;
+          if (m.life >= m.maxLife) {
+            m.active = false;
+            m.wait = 1.5 + Math.random() * 4;
+            m.head.visible = false;
+            m.tail.visible = false;
+          }
+        }
+      }
+
+      if (bodies.comets) {
+        for (const c of bodies.comets) {
+          c.angle += c.speed * dt;
+          const x = c.cx + Math.cos(c.angle) * c.orbitR;
+          const z = c.cz + Math.sin(c.angle) * c.orbitR;
+          const y = c.cy + Math.sin(c.angle * 2 + c.phase) * 1.2;
+          c.head.position.set(x, y, z);
+          const dir = Math.sign(c.speed) || 1;
+          const tx = -Math.sin(c.angle) * dir;
+          const tz = Math.cos(c.angle) * dir;
+          c.tail.position.set(x - tx * 2.2, y, z - tz * 2.2);
+        }
+      }
+    }
 
     function setSceneMode(mode) {
       sceneMode = mode === 'starfield' ? 'starfield' : 'castle';
@@ -6138,6 +6332,12 @@ export function initWizardChess() {
         cathedralLoaded,
         cathedralError,
         starfieldVisible: starfieldGroup.visible,
+        starfieldBodies: {
+          galaxies: (starfieldGroup.userData.galaxies || []).length,
+          meteors: (starfieldGroup.userData.meteors || []).length,
+          comets: (starfieldGroup.userData.comets || []).length,
+          activeMeteors: (starfieldGroup.userData.meteors || []).filter((m) => m.active).length
+        },
         reviewingHistoryIndex,
         checkmateState: { ...checkmateState },
         capturedByWhite,
@@ -6505,6 +6705,7 @@ export function initWizardChess() {
       // Slow drift for the procedural starfield shell
       if (starfieldGroup.visible) {
         starfieldGroup.rotation.y += dt * 0.008;
+        updateStarfieldBodies(dt);
       }
 
       // Advance volumetric GLSL brazier flames & active warm firelight flicker
