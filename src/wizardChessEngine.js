@@ -82,15 +82,15 @@ export function initWizardChess() {
     container.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x070a12);
-    scene.fog = new THREE.FogExp2(0x080b14, 0.015);
+    scene.background = new THREE.Color(0x0a0e27);
+    scene.fog = new THREE.FogExp2(0x0a0e27, 0.015);
 
     // Self-contained Cathedral PMREM Environment (inspired by three-gpu-pathtracer & realism-effects)
     function createCathedralPMREMEnvironment(glRenderer) {
       const pmremGen = new THREE.PMREMGenerator(glRenderer);
       pmremGen.compileEquirectangularShader();
       const envScene = new THREE.Scene();
-      envScene.background = new THREE.Color(0x161412);
+      envScene.background = new THREE.Color(0x141838);
       const boxGeo = new THREE.BoxGeometry(1, 1, 1);
       const addPanel = (colorHex, intensity, pos, scl) => {
         const mat = new THREE.MeshBasicMaterial({
@@ -101,15 +101,15 @@ export function initWizardChess() {
         m.scale.fromArray(scl);
         envScene.add(m);
       };
-      // Upper Gothic clerestory & Rose Window light panels
-      addPanel(0xdce6f7, 2.4, [0, 9.5, -12.0], [10.0, 2.0, 1.5]);
-      addPanel(0xffe0b5, 2.2, [0, 9.5, 12.0], [10.0, 2.0, 1.5]);
-      addPanel(0xd4deee, 1.8, [-9.0, 6.5, 0.0], [1.2, 4.5, 16.0]);
-      addPanel(0xd4deee, 1.8, [9.0, 6.5, 0.0], [1.2, 4.5, 16.0]);
-      // Warm twin fire cauldron & limestone floor bounce panels
-      addPanel(0xff9438, 3.2, [-4.5, 1.6, 0.0], [2.2, 2.2, 4.0]);
-      addPanel(0xff9438, 3.2, [4.5, 1.6, 0.0], [2.2, 2.2, 4.0]);
-      addPanel(0x6e5c49, 0.9, [0, -4.0, 0.0], [16.0, 1.0, 24.0]);
+      // Upper starlight & nebula light panels
+      addPanel(0x4dd0e1, 2.4, [0, 9.5, -12.0], [10.0, 2.0, 1.5]);
+      addPanel(0xe040fb, 2.2, [0, 9.5, 12.0], [10.0, 2.0, 1.5]);
+      addPanel(0x7ce8ff, 1.8, [-9.0, 6.5, 0.0], [1.2, 4.5, 16.0]);
+      addPanel(0x7ce8ff, 1.8, [9.0, 6.5, 0.0], [1.2, 4.5, 16.0]);
+      // Cyan / magenta twin glow & deep-space floor bounce panels
+      addPanel(0x4dd0e1, 3.2, [-4.5, 1.6, 0.0], [2.2, 2.2, 4.0]);
+      addPanel(0xe040fb, 3.2, [4.5, 1.6, 0.0], [2.2, 2.2, 4.0]);
+      addPanel(0x1a1f3d, 0.9, [0, -4.0, 0.0], [16.0, 1.0, 24.0]);
       const envTex = pmremGen.fromScene(envScene, 0.04).texture;
       boxGeo.dispose();
       pmremGen.dispose();
@@ -233,11 +233,11 @@ export function initWizardChess() {
       return origHandleMouseMovePan(event);
     };
 
-    // Dramatic Chiaroscuro Cathedral & Board Lighting (restoring original-example 3D stone relief & warm firelight contrast)
-    const hemiLight = new THREE.HemisphereLight(0xd8ccb8, 0x261d14, 0.62);
+    // Cool starlight key / rim / fill lighting over the deep-space board
+    const hemiLight = new THREE.HemisphereLight(0x9fd8ff, 0x141838, 0.62);
     scene.add(hemiLight);
 
-    const keyLight = new THREE.DirectionalLight(0xfff0d6, 2.55);
+    const keyLight = new THREE.DirectionalLight(0xbfe9ff, 2.55);
     keyLight.position.set(3.8, 8.5, 4.2);
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.width = 2048;
@@ -253,22 +253,22 @@ export function initWizardChess() {
     scene.add(keyLight);
 
     // Subtle directional rim/fill (kept low so opposing directional lights never cancel normal-map mortar shadows)
-    const rimLight = new THREE.DirectionalLight(0xd8cbb8, 0.72);
+    const rimLight = new THREE.DirectionalLight(0xe040fb, 0.72);
     rimLight.position.set(-4.5, 6.0, -6.5);
     scene.add(rimLight);
 
-    const southFillLight = new THREE.DirectionalLight(0xffe4c0, 0.52);
+    const southFillLight = new THREE.DirectionalLight(0x4dd0e1, 0.52);
     southFillLight.position.set(4.2, 5.8, 7.5);
     scene.add(southFillLight);
 
-    // Twin Flickering Brazier Point Lights (centered at x = +/-3.65, z = 0.00; flanking column bounce is evaluated in shader)
+    // Twin cyan / magenta glow point lights flanking the board
     const brazierCoords = [
-      { pos: [-3.65, 1.08, 0.00], baseIntensity: 4.35, dist: 18.0 },
-      { pos: [3.65, 1.08, 0.00], baseIntensity: 4.35, dist: 18.0 }
+      { pos: [-3.65, 1.08, 0.00], baseIntensity: 4.35, dist: 18.0, color: 0x4dd0e1 },
+      { pos: [3.65, 1.08, 0.00], baseIntensity: 4.35, dist: 18.0, color: 0xe040fb }
     ];
     const brazierLights = [];
     for (const cfg of brazierCoords) {
-      const pLight = new THREE.PointLight(0xff8e32, cfg.baseIntensity, cfg.dist, 1.40);
+      const pLight = new THREE.PointLight(cfg.color, cfg.baseIntensity, cfg.dist, 1.40);
       pLight.position.set(cfg.pos[0], cfg.pos[1], cfg.pos[2]);
       pLight.userData.baseIntensity = cfg.baseIntensity;
       scene.add(pLight);
@@ -285,10 +285,10 @@ export function initWizardChess() {
       canvas.height = 256;
       const ctx = canvas.getContext('2d');
       const grad = ctx.createRadialGradient(128, 128, 2, 128, 128, 128);
-      grad.addColorStop(0.0, 'rgba(255, 226, 155, 0.88)');
-      grad.addColorStop(0.18, 'rgba(255, 154, 52, 0.50)');
-      grad.addColorStop(0.45, 'rgba(255, 92, 16, 0.18)');
-      grad.addColorStop(0.75, 'rgba(210, 48, 4, 0.04)');
+      grad.addColorStop(0.0, 'rgba(124, 232, 255, 0.88)');
+      grad.addColorStop(0.18, 'rgba(77, 208, 225, 0.50)');
+      grad.addColorStop(0.45, 'rgba(77, 208, 225, 0.18)');
+      grad.addColorStop(0.75, 'rgba(224, 64, 251, 0.06)');
       grad.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, 256, 256);
@@ -773,9 +773,9 @@ export function initWizardChess() {
             float crackMask = smoothstep(0.68, 0.88, nCrack * 0.7 + nFine * 0.3);
             float underGlow = clamp(-vWorldNormal.y * 0.45 + 0.35, 0.0, 1.0) * smoothstep(0.72, 0.56, vLocalPos.y);
 
-            vec3 charBark = vec3(0.035, 0.025, 0.020);
-            vec3 emberOrange = vec3(1.0, 0.36, 0.04) * 1.45 * pulse;
-            vec3 hotCoal = vec3(1.0, 0.58, 0.12) * 1.65 * pulse;
+            vec3 charBark = vec3(0.035, 0.025, 0.050);
+            vec3 emberOrange = vec3(0.30, 0.92, 1.0) * 1.45 * pulse;
+            vec3 hotCoal = vec3(0.88, 0.36, 1.0) * 1.65 * pulse;
 
             float emberWeight = clamp(isCoalBed * (0.45 + 0.55 * nFine) + crackMask * 0.85 + underGlow * 0.45, 0.0, 1.0);
             vec3 col = mix(charBark, emberOrange, emberWeight);
@@ -790,15 +790,15 @@ export function initWizardChess() {
     function createBrazierWarmGlowHalos() {
       const glowTex = createSoftGlowTexture();
       const brazierCenters = [
-        { x: -3.65, y: 0.56, z: 0.00, seed: 1.3 },
-        { x: 3.65, y: 0.56, z: 0.00, seed: 5.8 }
+        { x: -3.65, y: 0.56, z: 0.00, seed: 1.3, color: 0x7ce8ff, halo: 0x4dd0e1 },
+        { x: 3.65, y: 0.56, z: 0.00, seed: 5.8, color: 0xf0a6ff, halo: 0xe040fb }
       ];
 
       for (const b of brazierCenters) {
-        // Layer 1: Inner warm hearth core glow halo centered in the flame body
+        // Layer 1: Inner cyan / magenta core glow halo centered in the flame body
         const coreGlowMat = new THREE.SpriteMaterial({
           map: glowTex,
-          color: 0xffb866,
+          color: b.color,
           transparent: true,
           opacity: 0.42,
           depthWrite: false,
@@ -811,10 +811,10 @@ export function initWizardChess() {
         scene.add(coreSprite);
         brazierGlowSprites.push(coreSprite);
 
-        // Layer 2: Wide, soft atmospheric warm glow halo bathing the surrounding air & ironwork
+        // Layer 2: Wide, soft atmospheric cyan / magenta glow halo bathing the surrounding air & ironwork
         const haloGlowMat = new THREE.SpriteMaterial({
           map: glowTex,
-          color: 0xff8524,
+          color: b.halo,
           transparent: true,
           opacity: 0.28,
           depthWrite: false,
@@ -835,21 +835,21 @@ export function initWizardChess() {
     // fine local window & column raking relief is evaluated analytically in applyCathedralStoneRealismShader)
     for (const wz of [-8.8, 8.2]) {
       for (const sideSign of [-1, 1]) {
-        const winLight = new THREE.PointLight(0x90beff, 4.2, 16.5, 1.35);
+        const winLight = new THREE.PointLight(0x4dd0e1, 4.2, 16.5, 1.35);
         winLight.position.set(sideSign * 5.3, 4.1, wz);
         scene.add(winLight);
       }
     }
-    const northWinLight = new THREE.PointLight(0x9bc4ff, 6.4, 20.0, 1.30);
+    const northWinLight = new THREE.PointLight(0x7ce8ff, 6.4, 20.0, 1.30);
     northWinLight.position.set(0, 5.2, -18.2);
     scene.add(northWinLight);
 
-    const southWinLight = new THREE.PointLight(0xffb85c, 6.4, 20.0, 1.30);
+    const southWinLight = new THREE.PointLight(0xe040fb, 6.4, 20.0, 1.30);
     southWinLight.position.set(0, 5.2, 18.2);
     scene.add(southWinLight);
 
     // Impact Flash Light (kept visible=true with intensity=0 when idle so Three.js never recompiles shaders mid-attack!)
-    const impactFlashLight = new THREE.PointLight(0xffb74d, 0, 6.0, 1.5);
+    const impactFlashLight = new THREE.PointLight(0x7ce8ff, 0, 6.0, 1.5);
     impactFlashLight.visible = true;
     scene.add(impactFlashLight);
 
@@ -857,28 +857,28 @@ export function initWizardChess() {
     // Materials for White & Black Sculpted Stone Chess Pieces
     // =========================================================================
     const whitePieceMat = new THREE.MeshStandardMaterial({
-      color: 0xe6dfd0,
+      color: 0xe8f1ff,
       roughness: 0.34,
       metalness: 0.06
     });
 
     const blackPieceMat = new THREE.MeshStandardMaterial({
-      color: 0x222630,
+      color: 0x1a1433,
       roughness: 0.28,
       metalness: 0.24
     });
 
     const goldTrimMat = new THREE.MeshStandardMaterial({
-      color: 0xd4af37,
+      color: 0x4dd0e1,
       roughness: 0.26,
       metalness: 0.86
     });
 
     const forgedSteelMat = new THREE.MeshStandardMaterial({
-      color: 0xdce4ee,
+      color: 0xc7d4f5,
       roughness: 0.20,
       metalness: 0.88,
-      emissive: 0x222832,
+      emissive: 0x141838,
       emissiveIntensity: 0.25
     });
 
@@ -901,12 +901,12 @@ export function initWizardChess() {
       const tileH = 0.036;
       const sqGeo = new THREE.BoxGeometry(BOARD_SQ_SIZE * 0.985, tileH, BOARD_SQ_SIZE * 0.985);
       const lightSqMat = new THREE.MeshStandardMaterial({
-        color: 0xdcd3c2,
+        color: 0xbae6fd,
         roughness: 0.38,
         metalness: 0.06
       });
       const darkSqMat = new THREE.MeshStandardMaterial({
-        color: 0x14171f,
+        color: 0x0f172a,
         roughness: 0.28,
         metalness: 0.18
       });
@@ -1098,7 +1098,7 @@ export function initWizardChess() {
           vec3 wNormal = inverseTransformDirection(normal, viewMatrix);
           float bounceL = max(0.0, dot(wNormal, normalize(toBrazierL)) * 0.65 + 0.35) / distSqL;
           float bounceR = max(0.0, dot(wNormal, normalize(toBrazierR)) * 0.65 + 0.35) / distSqR;
-          vec3 fireBounceGI = vec3(1.0, 0.54, 0.20) * (bounceL + bounceR) * 5.2 * uFireBounceStrength * stoneCavityAO;
+          vec3 fireBounceGI = (vec3(0.30, 0.82, 0.95) * bounceL + vec3(0.88, 0.36, 1.0) * bounceR) * 5.2 * uFireBounceStrength * stoneCavityAO;
 
           // Analytic raking window-sill & end-wall grazing light (replaces 14 static PointLights at zero BRDF cost)
           vec3 toSideWin = vec3(sign(vStoneWorldPos.x) * 6.8, 3.8, vStoneWorldPos.z) - vStoneWorldPos;
@@ -1124,7 +1124,7 @@ export function initWizardChess() {
         mat.roughness = cfg.roughness;
         mat.metalness = 0.02;
         if ('envMapIntensity' in mat) mat.envMapIntensity = 0.45;
-        if (mat.color) mat.color.setRGB(1, 1, 1);
+        if (mat.color) mat.color.setRGB(0.93, 0.94, 1.0);
         if (mat.normalScale) mat.normalScale.set(cfg.normalScale, cfg.normalScale);
         mat.needsUpdate = true;
       }
@@ -1138,7 +1138,7 @@ export function initWizardChess() {
         mat.roughness = cfg.roughness;
         mat.metalness = 0.02;
         if ('envMapIntensity' in mat) mat.envMapIntensity = 0.48;
-        if (mat.color) mat.color.setRGB(1, 1, 1);
+        if (mat.color) mat.color.setRGB(0.93, 0.94, 1.0);
         if (mat.normalScale) mat.normalScale.set(cfg.colNormalScale, cfg.colNormalScale);
         mat.needsUpdate = true;
       }
@@ -1158,7 +1158,7 @@ export function initWizardChess() {
         mat.emissiveIntensity = 0.06;
         mat.roughness = cfg.roughness;
         mat.metalness = cfg.metalness;
-        if (mat.color) mat.color.setRGB(1, 1, 1);
+        if (mat.color) mat.color.setRGB(0.89, 0.90, 0.99);
         if ('envMapIntensity' in mat) mat.envMapIntensity = 0.36;
         if (mat.normalScale) mat.normalScale.set(cfg.normalScale, cfg.normalScale);
         mat.needsUpdate = true;
@@ -1225,9 +1225,9 @@ export function initWizardChess() {
 
       // Instantiate custom GLSL shaders for the 3 sculpted brazier flame layers & charred ember logs
       const flameCoreShader = createSculptedFlameTongueShader({
-        baseColor: [1.0, 0.96, 0.72],
-        midColor: [1.0, 0.64, 0.12],
-        tipColor: [1.0, 0.36, 0.03],
+        baseColor: [0.78, 0.97, 1.0],
+        midColor: [0.30, 0.82, 0.95],
+        tipColor: [0.45, 0.85, 1.0],
         strength: 1.85,
         opacity: 0.92,
         zMin: 0.60,
@@ -1235,9 +1235,9 @@ export function initWizardChess() {
         layerSeed: 0.0
       });
       const flameMidShader = createSculptedFlameTongueShader({
-        baseColor: [1.0, 0.78, 0.25],
-        midColor: [1.0, 0.40, 0.04],
-        tipColor: [0.92, 0.16, 0.01],
+        baseColor: [0.72, 0.85, 1.0],
+        midColor: [0.36, 0.62, 1.0],
+        tipColor: [0.62, 0.40, 1.0],
         strength: 1.35,
         opacity: 0.82,
         zMin: 0.60,
@@ -1245,9 +1245,9 @@ export function initWizardChess() {
         layerSeed: 2.1
       });
       const flameOuterShader = createSculptedFlameTongueShader({
-        baseColor: [1.0, 0.45, 0.06],
-        midColor: [0.88, 0.18, 0.015],
-        tipColor: [0.45, 0.03, 0.002],
+        baseColor: [0.62, 0.36, 1.0],
+        midColor: [0.88, 0.36, 1.0],
+        tipColor: [0.45, 0.10, 0.62],
         strength: 0.95,
         opacity: 0.68,
         zMin: 0.60,
@@ -1347,8 +1347,8 @@ export function initWizardChess() {
 
                 if (isAmberGlass) {
                   mat.vertexColors = false;
-                  mat.color = new THREE.Color(0xffe6b8);
-                  mat.emissive = new THREE.Color(0xffa033);
+                  mat.color = new THREE.Color(0xf0a6ff);
+                  mat.emissive = new THREE.Color(0xe040fb);
                   mat.emissiveIntensity = 2.45;
                   mat.roughness = 0.15;
                   mat.metalness = 0.0;
@@ -1356,8 +1356,8 @@ export function initWizardChess() {
                   child.castShadow = false;
                 } else if (isGlass) {
                   mat.vertexColors = false;
-                  mat.color = new THREE.Color(0xdbeeff);
-                  mat.emissive = new THREE.Color(0x68a8ff);
+                  mat.color = new THREE.Color(0xbae6fd);
+                  mat.emissive = new THREE.Color(0x4dd0e1);
                   mat.emissiveIntensity = 2.65;
                   mat.roughness = 0.15;
                   mat.metalness = 0.0;
@@ -1893,7 +1893,7 @@ export function initWizardChess() {
       const fromGeo = new THREE.RingGeometry(0.11, 0.15, 32);
       fromGeo.rotateX(-Math.PI / 2);
       const fromMat = new THREE.MeshBasicMaterial({
-        color: 0xd4af37,
+        color: 0x4dd0e1,
         transparent: true,
         opacity: 0.9,
         side: THREE.DoubleSide
@@ -1905,7 +1905,7 @@ export function initWizardChess() {
       const toGeo = new THREE.RingGeometry(0.115, 0.16, 32);
       toGeo.rotateX(-Math.PI / 2);
       const toMat = new THREE.MeshBasicMaterial({
-        color: isCapture ? 0xe63946 : 0x4ea8de,
+        color: isCapture ? 0xff5277 : 0x4dd0e1,
         transparent: true,
         opacity: 0.95,
         side: THREE.DoubleSide
@@ -1921,7 +1921,7 @@ export function initWizardChess() {
         const beamGeo = new THREE.PlaneGeometry(0.042, Math.max(0.04, len - 0.24));
         beamGeo.rotateX(-Math.PI / 2);
         const beamMat = new THREE.MeshBasicMaterial({
-          color: isCapture ? 0xf59e0b : 0xf5d76e,
+          color: isCapture ? 0xe040fb : 0x7ce8ff,
           transparent: true,
           opacity: 0.55,
           side: THREE.DoubleSide
@@ -2286,7 +2286,7 @@ export function initWizardChess() {
       clearSquareHighlights();
       const selGeo = new THREE.RingGeometry(0.115, 0.155, 32);
       selGeo.rotateX(-Math.PI / 2);
-      const selMat = new THREE.MeshBasicMaterial({ color: 0xf5d76e, side: THREE.DoubleSide });
+      const selMat = new THREE.MeshBasicMaterial({ color: 0x7ce8ff, side: THREE.DoubleSide });
       const selMesh = new THREE.Mesh(selGeo, selMat);
       const selPos = boardToWorld(r, c);
       selMesh.position.set(selPos.x, BOARD_SURFACE_Y + 0.01, selPos.z);
@@ -2297,7 +2297,7 @@ export function initWizardChess() {
         if (m.capture) {
           const capGeo = new THREE.RingGeometry(0.12, 0.16, 32);
           capGeo.rotateX(-Math.PI / 2);
-          const capMat = new THREE.MeshBasicMaterial({ color: 0xe63946, side: THREE.DoubleSide });
+          const capMat = new THREE.MeshBasicMaterial({ color: 0xff5277, side: THREE.DoubleSide });
           const capMesh = new THREE.Mesh(capGeo, capMat);
           capMesh.position.set(pos.x, BOARD_SURFACE_Y + 0.012, pos.z);
           squareHighlightsGroup.add(capMesh);
@@ -2305,7 +2305,7 @@ export function initWizardChess() {
           const dotGeo = new THREE.CircleGeometry(0.06, 24);
           dotGeo.rotateX(-Math.PI / 2);
           const dotMat = new THREE.MeshBasicMaterial({
-            color: 0x4ea8de,
+            color: 0x4dd0e1,
             transparent: true,
             opacity: 0.85,
             side: THREE.DoubleSide
@@ -4947,14 +4947,14 @@ export function initWizardChess() {
       clearSquareHighlights();
       const outerRingGeo = new THREE.RingGeometry(0.135, 0.175, 36);
       outerRingGeo.rotateX(-Math.PI / 2);
-      const outerRingMat = new THREE.MeshBasicMaterial({ color: 0xe63946, side: THREE.DoubleSide });
+      const outerRingMat = new THREE.MeshBasicMaterial({ color: 0xff5277, side: THREE.DoubleSide });
       const outerRing = new THREE.Mesh(outerRingGeo, outerRingMat);
       outerRing.position.set(homePos.x, BOARD_SURFACE_Y + 0.012, homePos.z);
       squareHighlightsGroup.add(outerRing);
 
       const innerRingGeo = new THREE.RingGeometry(0.10, 0.125, 36);
       innerRingGeo.rotateX(-Math.PI / 2);
-      const innerRingMat = new THREE.MeshBasicMaterial({ color: 0xf5d76e, side: THREE.DoubleSide });
+      const innerRingMat = new THREE.MeshBasicMaterial({ color: 0x7ce8ff, side: THREE.DoubleSide });
       const innerRing = new THREE.Mesh(innerRingGeo, innerRingMat);
       innerRing.position.set(homePos.x, BOARD_SURFACE_Y + 0.014, homePos.z);
       squareHighlightsGroup.add(innerRing);
@@ -6063,35 +6063,35 @@ export function initWizardChess() {
           const bx = (window.innerWidth - bw) / 2;
           const by = 84;
 
-          ctx.fillStyle = 'rgba(10, 12, 20, 0.94)';
-          ctx.strokeStyle = 'rgba(212, 175, 55, 0.88)';
+          ctx.fillStyle = 'rgba(18, 18, 50, 0.94)';
+          ctx.strokeStyle = 'rgba(77, 208, 225, 0.88)';
           ctx.lineWidth = 2;
           ctx.beginPath();
           ctx.roundRect(bx, by, bw, bh, 6);
           ctx.fill();
           ctx.stroke();
 
-          ctx.strokeStyle = 'rgba(212, 175, 55, 0.38)';
+          ctx.strokeStyle = 'rgba(77, 208, 225, 0.38)';
           ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.roundRect(bx + 6, by + 6, bw - 12, bh - 12, 4);
           ctx.stroke();
 
           ctx.textAlign = 'center';
-          ctx.fillStyle = 'rgba(212, 175, 55, 0.88)';
+          ctx.fillStyle = 'rgba(77, 208, 225, 0.88)';
           ctx.font = '600 12px Georgia, serif';
           ctx.fillText(t('checkmate.ornament'), window.innerWidth / 2, by + 28);
 
-          ctx.fillStyle = '#f5d76e';
+          ctx.fillStyle = '#7ce8ff';
           ctx.font = '26px serif';
           const crownChar = checkmateState.winnerColor === 'b' ? '♚' : '♔';
           ctx.fillText(crownChar, window.innerWidth / 2, by + 56);
 
-          ctx.fillStyle = '#f7e299';
+          ctx.fillStyle = '#7ce8ff';
           ctx.font = 'bold 40px Georgia, serif';
           ctx.fillText(t('checkmate.title'), window.innerWidth / 2, by + 102);
 
-          ctx.strokeStyle = 'rgba(212, 175, 55, 0.65)';
+          ctx.strokeStyle = 'rgba(77, 208, 225, 0.65)';
           ctx.beginPath();
           ctx.moveTo(bx + 90, by + 116);
           ctx.lineTo(bx + bw - 90, by + 116);
@@ -6100,7 +6100,7 @@ export function initWizardChess() {
           const subTxt =
             document.getElementById('checkmate-subtitle')?.textContent ||
             t('checkmate.subtitle', { winner: t('status.sideWhite'), defeated: t('status.sideBlack') });
-          ctx.fillStyle = '#f0ece1';
+          ctx.fillStyle = '#eaf2ff';
           ctx.font = 'bold 14px Georgia, serif';
           ctx.fillText(subTxt, window.innerWidth / 2, by + 142);
           ctx.restore();
@@ -6110,56 +6110,56 @@ export function initWizardChess() {
         if (!document.body.classList.contains('cinematic-ui-hidden')) {
           ctx.save();
           ctx.scale(scale, scale);
-          ctx.fillStyle = 'rgba(12, 15, 22, 0.82)';
-          ctx.strokeStyle = 'rgba(212, 175, 55, 0.45)';
+          ctx.fillStyle = 'rgba(18, 18, 50, 0.82)';
+          ctx.strokeStyle = 'rgba(77, 208, 225, 0.45)';
           ctx.lineWidth = 1.5;
           ctx.beginPath();
           ctx.roundRect(16, 16, 520, 42, 10);
           ctx.fill();
           ctx.stroke();
 
-          ctx.fillStyle = '#d4af37';
+          ctx.fillStyle = '#4dd0e1';
           ctx.font = 'bold 13px Inter, sans-serif';
           ctx.fillText(t('canvas.brand'), 30, 42);
 
           const turnStr = document.getElementById('turn-text')?.textContent || '';
           const modeStr = document.getElementById('mode-badge')?.textContent || '';
-          ctx.fillStyle = '#f0ece1';
+          ctx.fillStyle = '#eaf2ff';
           ctx.font = '600 13px Inter, sans-serif';
           ctx.fillText(`${turnStr}   |   ${modeStr}`, 155, 42);
 
           if (lobbyModal?.classList.contains('open')) {
-            ctx.fillStyle = 'rgba(6, 8, 14, 0.72)';
+            ctx.fillStyle = 'rgba(10, 14, 32, 0.72)';
             ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
             const cw = 440;
             const ch = 290;
             const cx = (window.innerWidth - cw) / 2;
             const cy = (window.innerHeight - ch) / 2;
-            ctx.fillStyle = 'rgba(14, 17, 26, 0.96)';
-            ctx.strokeStyle = '#d4af37';
+            ctx.fillStyle = 'rgba(20, 24, 56, 0.96)';
+            ctx.strokeStyle = '#4dd0e1';
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.roundRect(cx, cy, cw, ch, 16);
             ctx.fill();
             ctx.stroke();
 
-            ctx.fillStyle = '#d4af37';
+            ctx.fillStyle = '#4dd0e1';
             ctx.font = 'bold 18px Inter, sans-serif';
             ctx.fillText(t('canvas.lobbyTitle'), cx + 28, cy + 42);
 
-            ctx.fillStyle = '#9aa0a6';
+            ctx.fillStyle = '#9aa0c0';
             ctx.font = '13px Inter, sans-serif';
             ctx.fillText(t('canvas.lobbyShare'), cx + 28, cy + 82);
 
-            ctx.fillStyle = '#f5d76e';
+            ctx.fillStyle = '#7ce8ff';
             ctx.font = 'bold 38px monospace';
             ctx.fillText(roomCode || '----', cx + 150, cy + 138);
 
-            ctx.fillStyle = '#4ea8de';
+            ctx.fillStyle = '#4dd0e1';
             ctx.font = '600 14px Inter, sans-serif';
             ctx.fillText(t('canvas.lobbyCreate'), cx + 42, cy + 195);
 
-            ctx.fillStyle = '#f0ece1';
+            ctx.fillStyle = '#eaf2ff';
             ctx.font = '13px Inter, sans-serif';
             ctx.fillText(t('canvas.lobbyHost', { side: playerColor === 'w' ? t('status.sideWhite') : t('status.sideBlack') }), cx + 48, cy + 240);
           }
