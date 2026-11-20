@@ -90,6 +90,7 @@ export function initWizardChess() {
     let cathedralLoaded = false;
     let cathedralError = null;
     let sceneMode = localStorage.getItem('wizardchess.scene') === 'starfield' ? 'starfield' : 'castle';
+    let qualityLevel = 'medium';
 
     function createNebulaTexture() {
       const canvas = document.createElement('canvas');
@@ -107,6 +108,32 @@ export function initWizardChess() {
       tex.colorSpace = THREE.SRGBColorSpace;
       return tex;
     }
+
+    // ---- Quality tiers: render scale, shadows, and starfield density/detail ----
+    const QUALITY_LEVELS = ['ultra-low', 'low', 'medium-low', 'medium', 'medium-high', 'high', 'ultra'];
+    const QUALITY_PRESETS = {
+      'ultra-low':  { pixelRatio: 1,    shadows: false, stars: 400,  nebulae: 1, galaxies: 1, galaxyScale: 0.6,  meteors: 2, comets: 1, detail: false },
+      'low':        { pixelRatio: 1,    shadows: false, stars: 700,  nebulae: 1, galaxies: 1, galaxyScale: 0.75, meteors: 3, comets: 1, detail: false },
+      'medium-low': { pixelRatio: 1.25, shadows: true,  stars: 1100, nebulae: 2, galaxies: 2, galaxyScale: 0.85, meteors: 4, comets: 2, detail: false },
+      'medium':     { pixelRatio: 1.5,  shadows: true,  stars: 1700, nebulae: 3, galaxies: 3, galaxyScale: 1.0,  meteors: 5, comets: 2, detail: false },
+      'medium-high':{ pixelRatio: 1.75, shadows: true,  stars: 2300, nebulae: 3, galaxies: 3, galaxyScale: 1.15, meteors: 6, comets: 2, detail: true  },
+      'high':       { pixelRatio: 2,    shadows: true,  stars: 3000, nebulae: 3, galaxies: 3, galaxyScale: 1.3,  meteors: 7, comets: 3, detail: true  },
+      'ultra':      { pixelRatio: 2,    shadows: true,  stars: 4000, nebulae: 4, galaxies: 4, galaxyScale: 1.5,  meteors: 9, comets: 3, detail: true  }
+    };
+    const DEFAULT_QUALITY = 'medium';
+    function resolveQualityLevel(raw) {
+      return QUALITY_LEVELS.includes(raw) ? raw : DEFAULT_QUALITY;
+    }
+    function disposeObject3D(root) {
+      root.traverse((o) => {
+        if (o.geometry) o.geometry.dispose();
+        if (o.material) {
+          const ms = Array.isArray(o.material) ? o.material : [o.material];
+          for (const m of ms) { if (m.map) m.map.dispose(); m.dispose(); }
+        }
+      });
+    }
+    qualityLevel = resolveQualityLevel(localStorage.getItem('wizardchess.quality'));
 
     function randGaussian() {
       let u = 0;
@@ -132,8 +159,9 @@ export function initWizardChess() {
       return tex;
     }
 
-    function buildGalaxy(def) {
-      const { center, radius, points, inner, outer, tiltX, tiltZ, spin } = def;
+    function buildGalaxy(def, pointScale = 1) {
+      const { center, radius, inner, outer, tiltX, tiltZ, spin } = def;
+      const points = Math.max(120, Math.round(def.points * pointScale));
       const pos = new Float32Array(points * 3);
       const col = new Float32Array(points * 3);
       const cInner = new THREE.Color(inner);
@@ -187,18 +215,56 @@ export function initWizardChess() {
       return group;
     }
 
-    function createStarfieldGroup() {
+    function buildDustBand(count) {
+      const pos = new Float32Array(count * 3);
+      const col = new Float32Array(count * 3);
+      const palette = [
+        new THREE.Color(0xffffff),
+        new THREE.Color(0x7ce8ff),
+        new THREE.Color(0xe040fb)
+      ];
+      for (let i = 0; i < count; i++) {
+        const ang = Math.random() * Math.PI * 2;
+        const r = 24 + randGaussian() * 3;
+        pos[i * 3] = Math.cos(ang) * r;
+        pos[i * 3 + 1] = Math.sin(ang) * 7 + randGaussian() * 1.6;
+        pos[i * 3 + 2] = Math.sin(ang) * r;
+        const c = palette[Math.floor(Math.random() * palette.length)];
+        const dim = 0.35 + Math.random() * 0.45;
+        col[i * 3] = c.r * dim;
+        col[i * 3 + 1] = c.g * dim;
+        col[i * 3 + 2] = c.b * dim;
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      const mat = new THREE.PointsMaterial({
+        size: 0.12,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.8,
+        depthWrite: false,
+        sizeAttenuation: true
+      });
+      return new THREE.Points(geo, mat);
+    }
+
+    function createStarfieldGroup(preset) {
       const group = new THREE.Group();
-      const STAR_COUNT = 1700;
-      const positions = new Float32Array(STAR_COUNT * 3);
-      const colors = new Float32Array(STAR_COUNT * 3);
+      const p = preset || QUALITY_PRESETS[DEFAULT_QUALITY];
+      const nebulaTex = createNebulaTexture();
+      const tailTex = createTailTexture();
+
+      // ---- Background star shell ----
+      const positions = new Float32Array(p.stars * 3);
+      const colors = new Float32Array(p.stars * 3);
       const palette = [
         new THREE.Color(0xffffff),
         new THREE.Color(0x7ce8ff),
         new THREE.Color(0x4dd0e1),
         new THREE.Color(0xe040fb)
       ];
-      for (let i = 0; i < STAR_COUNT; i++) {
+      for (let i = 0; i < p.stars; i++) {
         const r = 30 + Math.random() * 26;
         const theta = Math.random() * Math.PI * 2;
         const phi = Math.acos(2 * Math.random() - 1);
@@ -224,13 +290,19 @@ export function initWizardChess() {
       });
       group.add(new THREE.Points(starGeo, starMat));
 
-      const nebulaTex = createNebulaTexture();
-      const nebulae = [
+      // ---- Fine dust band (high-detail tiers only) ----
+      if (p.detail) {
+        group.add(buildDustBand(Math.round(p.stars * 0.25)));
+      }
+
+      const nebulaDefs = [
         { color: 0x4dd0e1, pos: [-15, 7, -24], scale: 28, opacity: 0.20 },
         { color: 0xe040fb, pos: [16, 4, -20], scale: 25, opacity: 0.18 },
-        { color: 0x2a3570, pos: [0, -7, -28], scale: 32, opacity: 0.28 }
+        { color: 0x2a3570, pos: [0, -7, -28], scale: 32, opacity: 0.28 },
+        { color: 0x7ce8ff, pos: [-6, -11, -26], scale: 22, opacity: 0.16 }
       ];
-      for (const n of nebulae) {
+      for (let ni = 0; ni < Math.min(p.nebulae, nebulaDefs.length); ni++) {
+        const n = nebulaDefs[ni];
         const mat = new THREE.SpriteMaterial({
           map: nebulaTex,
           color: n.color,
@@ -250,19 +322,18 @@ export function initWizardChess() {
       const galaxyDefs = [
         { center: [-18, 9, -30], radius: 9.0, points: 1400, inner: 0xfff3d6, outer: 0x4dd0e1, tiltX: 0.5, tiltZ: -0.25, spin: 3.2 },
         { center: [19, -3, -28], radius: 7.5, points: 1100, inner: 0xfff3d6, outer: 0xe040fb, tiltX: -0.35, tiltZ: 0.4, spin: -3.0 },
-        { center: [2, 13, -34], radius: 4.5, points: 600, inner: 0xffffff, outer: 0x7ce8ff, tiltX: 0.2, tiltZ: 0.1, spin: 2.4 }
+        { center: [2, 13, -34], radius: 4.5, points: 600, inner: 0xffffff, outer: 0x7ce8ff, tiltX: 0.2, tiltZ: 0.1, spin: 2.4 },
+        { center: [-6, -10, -33], radius: 5.0, points: 700, inner: 0xffffff, outer: 0x4dd0e1, tiltX: 0.4, tiltZ: -0.3, spin: -2.6 }
       ];
-      for (const gdef of galaxyDefs) {
-        const galaxy = buildGalaxy(gdef);
+      for (let g = 0; g < Math.min(p.galaxies, galaxyDefs.length); g++) {
+        const galaxy = buildGalaxy(galaxyDefs[g], p.galaxyScale);
         galaxies.push(galaxy);
         group.add(galaxy);
       }
 
       // ---- Meteor pool: bright head + fading tail, spawn on a timer ----
-      const tailTex = createTailTexture();
       const meteors = [];
-      const METEOR_COUNT = 5;
-      for (let i = 0; i < METEOR_COUNT; i++) {
+      for (let i = 0; i < p.meteors; i++) {
         const headMat = new THREE.SpriteMaterial({ map: nebulaTex, color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
         const head = new THREE.Sprite(headMat);
         head.scale.set(0.7, 0.7, 1);
@@ -280,9 +351,11 @@ export function initWizardChess() {
       const comets = [];
       const cometDefs = [
         { cx: 0, cy: 10, cz: -32, orbitR: 10, speed: 0.05, phase: 0, color: 0x7ce8ff, tailColor: 0x4dd0e1 },
-        { cx: -12, cy: -1, cz: -30, orbitR: 9, speed: -0.04, phase: 2.1, color: 0xffffff, tailColor: 0xe040fb }
+        { cx: -12, cy: -1, cz: -30, orbitR: 9, speed: -0.04, phase: 2.1, color: 0xffffff, tailColor: 0xe040fb },
+        { cx: 11, cy: 3, cz: -31, orbitR: 8, speed: 0.045, phase: 4.0, color: 0x7ce8ff, tailColor: 0xe040fb }
       ];
-      for (const cdef of cometDefs) {
+      for (let c = 0; c < Math.min(p.comets, cometDefs.length); c++) {
+        const cdef = cometDefs[c];
         const headMat = new THREE.SpriteMaterial({ map: nebulaTex, color: cdef.color, transparent: true, opacity: 0.95, depthWrite: false, blending: THREE.AdditiveBlending });
         const head = new THREE.Sprite(headMat);
         head.scale.set(1.2, 1.2, 1);
@@ -297,11 +370,12 @@ export function initWizardChess() {
       group.userData.galaxies = galaxies;
       group.userData.meteors = meteors;
       group.userData.comets = comets;
+      group.userData.preset = { ...p };
       group.visible = false;
       return group;
     }
 
-    const starfieldGroup = createStarfieldGroup();
+    let starfieldGroup = createStarfieldGroup(QUALITY_PRESETS[qualityLevel]);
     scene.add(starfieldGroup);
 
     function updateStarfieldBodies(dt) {
@@ -380,7 +454,43 @@ export function initWizardChess() {
       return sceneMode;
     }
     function getSceneMode() { return sceneMode; }
+
+    function applyQualityRenderSettings(preset) {
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, preset.pixelRatio));
+      renderer.shadowMap.enabled = preset.shadows;
+      renderer.shadowMap.needsUpdate = true;
+      scene.traverse((o) => {
+        if (o.material) {
+          const ms = Array.isArray(o.material) ? o.material : [o.material];
+          for (const m of ms) m.needsUpdate = true;
+        }
+      });
+    }
+
+    function setQualityLevel(level) {
+      const next = resolveQualityLevel(level);
+      qualityLevel = next;
+      const preset = QUALITY_PRESETS[next];
+      try { localStorage.setItem('wizardchess.quality', next); } catch (err) {}
+
+      applyQualityRenderSettings(preset);
+
+      const wasVisible = starfieldGroup.visible;
+      scene.remove(starfieldGroup);
+      disposeObject3D(starfieldGroup);
+      starfieldGroup = createStarfieldGroup(preset);
+      starfieldGroup.visible = wasVisible;
+      scene.add(starfieldGroup);
+
+      try {
+        window.dispatchEvent(new CustomEvent('wizardchess:qualitychange', { detail: { quality: next, preset } }));
+      } catch (err) {}
+      return next;
+    }
+    function getQualityLevel() { return qualityLevel; }
+
     setSceneMode(sceneMode);
+    applyQualityRenderSettings(QUALITY_PRESETS[qualityLevel]);
 
     // Self-contained Cathedral PMREM Environment (inspired by three-gpu-pathtracer & realism-effects)
     function createCathedralPMREMEnvironment(glRenderer) {
@@ -6218,6 +6328,9 @@ export function initWizardChess() {
       getEffectsEnabled,
       setSceneMode,
       getSceneMode,
+      setQualityLevel,
+      getQualityLevel,
+      QUALITY_LEVELS,
       get AI_DIFFICULTY_LEVELS() {
         return AI_DIFFICULTY_LEVELS.map((lvl) => ({
           id: lvl.id,
@@ -6328,6 +6441,7 @@ export function initWizardChess() {
         gameOver,
         effectsEnabled,
         sceneMode,
+        quality: qualityLevel,
         cathedralVisible: cathedralRoot ? cathedralRoot.visible : null,
         cathedralLoaded,
         cathedralError,
@@ -6336,7 +6450,10 @@ export function initWizardChess() {
           galaxies: (starfieldGroup.userData.galaxies || []).length,
           meteors: (starfieldGroup.userData.meteors || []).length,
           comets: (starfieldGroup.userData.comets || []).length,
-          activeMeteors: (starfieldGroup.userData.meteors || []).filter((m) => m.active).length
+          activeMeteors: (starfieldGroup.userData.meteors || []).filter((m) => m.active).length,
+          stars: starfieldGroup.userData.preset?.stars ?? null,
+          nebulae: starfieldGroup.userData.preset?.nebulae ?? null,
+          detail: Boolean(starfieldGroup.userData.preset?.detail)
         },
         reviewingHistoryIndex,
         checkmateState: { ...checkmateState },

@@ -53,6 +53,8 @@ interface AIDifficultyLevel {
   tacticalHint: string;
 }
 
+const QUALITY_OPTIONS = ['ultra-low', 'low', 'medium-low', 'medium', 'medium-high', 'high', 'ultra'];
+
 const AI_LEVEL_META: Array<{ id: string; tier: number; elo: number }> = [
   { id: 'rookie', tier: 1, elo: 120 },
   { id: 'scout', tier: 2, elo: 260 },
@@ -96,6 +98,9 @@ interface WizardChessApi {
   analyzeHistoryMove?: (index: number) => MoveInsight | null;
   setLanguage?: (lang: string) => string;
   getLanguage?: () => string;
+  setQualityLevel?: (level: string) => string;
+  getQualityLevel?: () => string;
+  QUALITY_LEVELS?: string[];
 }
 
 function getWizardChessApi(): WizardChessApi | undefined {
@@ -109,6 +114,7 @@ export default function App() {
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [effectsEnabled, setEffectsEnabled] = useState(true);
   const [sceneMode, setSceneModeState] = useState<'castle' | 'starfield'>('castle');
+  const [quality, setQuality] = useState<string>('medium');
   const [aiLevels, setAiLevels] = useState<AIDifficultyLevel[]>(() =>
     localizeAiLevels(createTranslator(detectInitialLanguage()))
   );
@@ -161,11 +167,18 @@ export default function App() {
         setSceneModeState(customEvent.detail.mode);
       }
     };
+    const handleQualityChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ quality: string }>;
+      if (customEvent.detail?.quality) {
+        setQuality(customEvent.detail.quality);
+      }
+    };
 
     window.addEventListener('wizardchess:historychange', handleHistoryChange);
     window.addEventListener('wizardchess:effectschange', handleEffectsChange);
     window.addEventListener('wizardchess:aidifficultychange', handleAiDifficultyChange);
     window.addEventListener('wizardchess:scenemodechange', handleSceneModeChange);
+    window.addEventListener('wizardchess:qualitychange', handleQualityChange);
 
     const api = getWizardChessApi();
     if (api?.getMoveHistory) {
@@ -177,6 +190,10 @@ export default function App() {
     if (api?.getSceneMode) {
       const cur = api.getSceneMode();
       if (cur === 'castle' || cur === 'starfield') setSceneModeState(cur);
+    }
+    if (api?.getQualityLevel) {
+      const q = api.getQualityLevel();
+      if (q) setQuality(q);
     }
     if (api?.AI_DIFFICULTY_LEVELS?.length) {
       setAiLevels(api.AI_DIFFICULTY_LEVELS);
@@ -191,6 +208,7 @@ export default function App() {
       window.removeEventListener('wizardchess:effectschange', handleEffectsChange);
       window.removeEventListener('wizardchess:aidifficultychange', handleAiDifficultyChange);
       window.removeEventListener('wizardchess:scenemodechange', handleSceneModeChange);
+      window.removeEventListener('wizardchess:qualitychange', handleQualityChange);
     };
   }, []);
 
@@ -264,6 +282,12 @@ export default function App() {
   const handleSelectScene = (mode: 'castle' | 'starfield') => {
     setSceneModeState(mode);
     getWizardChessApi()?.setSceneMode?.(mode);
+  };
+
+  const handleChangeQuality = (next: string) => {
+    if (!QUALITY_OPTIONS.includes(next) || next === quality) return;
+    setQuality(next);
+    getWizardChessApi()?.setQualityLevel?.(next);
   };
 
   const handleSelectAiDifficulty = (id: string) => {
@@ -555,6 +579,18 @@ export default function App() {
               <span className="effects-switch-thumb"></span>
             </span>
           </button>
+
+          <select
+            className="lang-select quality-select"
+            id="quality-select"
+            aria-label={t('quality.label')}
+            value={quality}
+            onChange={(e) => handleChangeQuality(e.target.value)}
+          >
+            {QUALITY_OPTIONS.map((q) => (
+              <option key={q} value={q}>{t(`quality.${q}`)}</option>
+            ))}
+          </select>
 
           <button
             className="hud-btn"

@@ -1551,3 +1551,9 @@ body.cinematic-ui-hidden #hud-bottom {
   background: #141838;
   color: var(--text);
 }
+
+.quality-select {
+  width: 100%;
+  margin: 4px 0;
+  border-radius: 10px;
+}
