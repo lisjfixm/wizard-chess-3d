@@ -87,6 +87,8 @@ export function initWizardChess() {
 
     // ---- Dual scene: castle (cathedral GLB) vs starfield (procedural) ----
     let cathedralRoot = null;
+    let cathedralLoaded = false;
+    let cathedralError = null;
     let sceneMode = localStorage.getItem('wizardchess.scene') === 'starfield' ? 'starfield' : 'castle';
 
     function createNebulaTexture() {
@@ -1288,22 +1290,28 @@ export function initWizardChess() {
 
       async function loadGltfModel(baseName) {
         let arrayBuffer = null;
-        try {
+        const decodeB64 = async () => {
           const resB64 = await fetch(`./assets/glb/${baseName}.glb.gz.b64`);
-          if (resB64.ok) {
-            const b64Text = (await resB64.text()).trim();
-            if (b64Text.length > 64) {
-              const binStr = atob(b64Text);
-              const gzBytes = new Uint8Array(binStr.length);
-              for (let i = 0; i < binStr.length; i++) {
-                gzBytes[i] = binStr.charCodeAt(i);
-              }
-              const ds = new DecompressionStream('gzip');
-              const stream = new Blob([gzBytes]).stream().pipeThrough(ds);
-              arrayBuffer = await new Response(stream).arrayBuffer();
-            }
+          if (!resB64.ok) return null;
+          const b64Text = (await resB64.text()).trim();
+          if (b64Text.length <= 64) return null;
+          const binStr = atob(b64Text);
+          const gzBytes = new Uint8Array(binStr.length);
+          for (let i = 0; i < binStr.length; i++) {
+            gzBytes[i] = binStr.charCodeAt(i);
           }
-        } catch (e) {}
+          const ds = new DecompressionStream('gzip');
+          const stream = new Blob([gzBytes]).stream().pipeThrough(ds);
+          return await new Response(stream).arrayBuffer();
+        };
+
+        for (let attempt = 0; attempt < 2 && !arrayBuffer; attempt++) {
+          try {
+            arrayBuffer = await decodeB64();
+          } catch (e) {
+            arrayBuffer = null;
+          }
+        }
 
         if (!arrayBuffer) {
           const resGlb = await fetch(`./assets/glb/${baseName}.glb`);
@@ -1504,12 +1512,15 @@ export function initWizardChess() {
             setWallStoneLook(0);
             setFloorStoneLook(0);
             scene.add(cathedralRoot);
+            cathedralLoaded = true;
+            cathedralError = null;
             setSceneMode(sceneMode);
 
             bumpProgress(t('loading.cathedral'));
             resolve();
           },
           (err) => {
+            cathedralError = (err && (err.message || String(err))) || 'Unknown cathedral load error';
             console.warn('Cathedral GLB load warning:', err);
             bumpProgress(t('loading.cathedralDone'));
             resolve();
@@ -6124,6 +6135,8 @@ export function initWizardChess() {
         effectsEnabled,
         sceneMode,
         cathedralVisible: cathedralRoot ? cathedralRoot.visible : null,
+        cathedralLoaded,
+        cathedralError,
         starfieldVisible: starfieldGroup.visible,
         reviewingHistoryIndex,
         checkmateState: { ...checkmateState },
