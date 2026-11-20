@@ -85,6 +85,107 @@ export function initWizardChess() {
     scene.background = new THREE.Color(0x0a0e27);
     scene.fog = new THREE.FogExp2(0x0a0e27, 0.015);
 
+    // ---- Dual scene: castle (cathedral GLB) vs starfield (procedural) ----
+    let cathedralRoot = null;
+    let sceneMode = localStorage.getItem('wizardchess.scene') === 'starfield' ? 'starfield' : 'castle';
+
+    function createNebulaTexture() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      const grad = ctx.createRadialGradient(128, 128, 4, 128, 128, 128);
+      grad.addColorStop(0.0, 'rgba(255, 255, 255, 0.85)');
+      grad.addColorStop(0.35, 'rgba(255, 255, 255, 0.28)');
+      grad.addColorStop(0.7, 'rgba(255, 255, 255, 0.07)');
+      grad.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 256, 256);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createStarfieldGroup() {
+      const group = new THREE.Group();
+      const STAR_COUNT = 1700;
+      const positions = new Float32Array(STAR_COUNT * 3);
+      const colors = new Float32Array(STAR_COUNT * 3);
+      const palette = [
+        new THREE.Color(0xffffff),
+        new THREE.Color(0x7ce8ff),
+        new THREE.Color(0x4dd0e1),
+        new THREE.Color(0xe040fb)
+      ];
+      for (let i = 0; i < STAR_COUNT; i++) {
+        const r = 30 + Math.random() * 26;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+        positions[i * 3 + 1] = r * Math.cos(phi) * 0.85;
+        positions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+        const c = palette[Math.floor(Math.random() * palette.length)];
+        const dim = 0.55 + Math.random() * 0.45;
+        colors[i * 3] = c.r * dim;
+        colors[i * 3 + 1] = c.g * dim;
+        colors[i * 3 + 2] = c.b * dim;
+      }
+      const starGeo = new THREE.BufferGeometry();
+      starGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      starGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      const starMat = new THREE.PointsMaterial({
+        size: 0.17,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.95,
+        depthWrite: false,
+        sizeAttenuation: true
+      });
+      group.add(new THREE.Points(starGeo, starMat));
+
+      const nebulaTex = createNebulaTexture();
+      const nebulae = [
+        { color: 0x4dd0e1, pos: [-15, 7, -24], scale: 28, opacity: 0.20 },
+        { color: 0xe040fb, pos: [16, 4, -20], scale: 25, opacity: 0.18 },
+        { color: 0x2a3570, pos: [0, -7, -28], scale: 32, opacity: 0.28 }
+      ];
+      for (const n of nebulae) {
+        const mat = new THREE.SpriteMaterial({
+          map: nebulaTex,
+          color: n.color,
+          transparent: true,
+          opacity: n.opacity,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        });
+        const sp = new THREE.Sprite(mat);
+        sp.position.fromArray(n.pos);
+        sp.scale.set(n.scale, n.scale, 1);
+        group.add(sp);
+      }
+      group.visible = false;
+      return group;
+    }
+
+    const starfieldGroup = createStarfieldGroup();
+    scene.add(starfieldGroup);
+
+    function setSceneMode(mode) {
+      sceneMode = mode === 'starfield' ? 'starfield' : 'castle';
+      try { localStorage.setItem('wizardchess.scene', sceneMode); } catch (err) {}
+      if (cathedralRoot) cathedralRoot.visible = sceneMode === 'castle';
+      starfieldGroup.visible = sceneMode === 'starfield';
+      scene.fog = new THREE.FogExp2(0x0a0e27, sceneMode === 'starfield' ? 0.008 : 0.015);
+      document.getElementById('btn-scene-castle')?.classList.toggle('active', sceneMode === 'castle');
+      document.getElementById('btn-scene-star')?.classList.toggle('active', sceneMode === 'starfield');
+      try {
+        window.dispatchEvent(new CustomEvent('wizardchess:scenemodechange', { detail: { mode: sceneMode } }));
+      } catch (err) {}
+      return sceneMode;
+    }
+    function getSceneMode() { return sceneMode; }
+    setSceneMode(sceneMode);
+
     // Self-contained Cathedral PMREM Environment (inspired by three-gpu-pathtracer & realism-effects)
     function createCathedralPMREMEnvironment(glRenderer) {
       const pmremGen = new THREE.PMREMGenerator(glRenderer);
@@ -1261,7 +1362,7 @@ export function initWizardChess() {
       await new Promise((resolve) => {
         loadGltfModel('option8_cathedral').then(
           (gltf) => {
-            const cathedralRoot = gltf.scene;
+            cathedralRoot = gltf.scene;
             cathedralRoot.position.set(0, 0, -0.65);
 
             cathedralRoot.traverse((child) => {
@@ -1403,6 +1504,7 @@ export function initWizardChess() {
             setWallStoneLook(0);
             setFloorStoneLook(0);
             scene.add(cathedralRoot);
+            setSceneMode(sceneMode);
 
             bumpProgress(t('loading.cathedral'));
             resolve();
@@ -5665,6 +5767,8 @@ export function initWizardChess() {
     document.getElementById('btn-cam-top')?.addEventListener('click', () => setCameraPreset('top'));
     document.getElementById('btn-cam-side')?.addEventListener('click', () => setCameraPreset('side'));
     document.getElementById('btn-cam-wide')?.addEventListener('click', () => setCameraPreset('wide'));
+    document.getElementById('btn-scene-castle')?.addEventListener('click', () => setSceneMode('castle'));
+    document.getElementById('btn-scene-star')?.addEventListener('click', () => setSceneMode('starfield'));
     document.getElementById('btn-hide-ui')?.addEventListener('click', () => toggleUI());
 
     document.getElementById('btn-script-modal')?.addEventListener('click', () => openLobbyModal('script'));
@@ -5907,6 +6011,8 @@ export function initWizardChess() {
       LANGUAGES,
       setEffectsEnabled,
       getEffectsEnabled,
+      setSceneMode,
+      getSceneMode,
       get AI_DIFFICULTY_LEVELS() {
         return AI_DIFFICULTY_LEVELS.map((lvl) => ({
           id: lvl.id,
@@ -6016,6 +6122,9 @@ export function initWizardChess() {
         isAnimatingMove,
         gameOver,
         effectsEnabled,
+        sceneMode,
+        cathedralVisible: cathedralRoot ? cathedralRoot.visible : null,
+        starfieldVisible: starfieldGroup.visible,
         reviewingHistoryIndex,
         checkmateState: { ...checkmateState },
         capturedByWhite,
@@ -6378,6 +6487,11 @@ export function initWizardChess() {
           const s = Math.max(0.01, d.life * 2);
           d.mesh.scale.setScalar((d.baseScale || 0.036) * s);
         }
+      }
+
+      // Slow drift for the procedural starfield shell
+      if (starfieldGroup.visible) {
+        starfieldGroup.rotation.y += dt * 0.008;
       }
 
       // Advance volumetric GLSL brazier flames & active warm firelight flicker

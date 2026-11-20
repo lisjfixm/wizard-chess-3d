@@ -85,6 +85,8 @@ interface WizardChessApi {
   toggleUI?: (force?: boolean) => void;
   setEffectsEnabled?: (enabled: boolean) => boolean;
   getEffectsEnabled?: () => boolean;
+  setSceneMode?: (mode: string) => string;
+  getSceneMode?: () => string;
   AI_DIFFICULTY_LEVELS?: AIDifficultyLevel[];
   setAIDifficulty?: (id: string) => AIDifficultyLevel;
   getAIDifficulty?: () => AIDifficultyLevel;
@@ -106,6 +108,7 @@ export default function App() {
   const [lang, setLang] = useState<string>(() => detectInitialLanguage());
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [effectsEnabled, setEffectsEnabled] = useState(true);
+  const [sceneMode, setSceneModeState] = useState<'castle' | 'starfield'>('castle');
   const [aiLevels, setAiLevels] = useState<AIDifficultyLevel[]>(() =>
     localizeAiLevels(createTranslator(detectInitialLanguage()))
   );
@@ -152,10 +155,17 @@ export default function App() {
         setAiDifficultyId(customEvent.detail.id);
       }
     };
+    const handleSceneModeChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ mode: 'castle' | 'starfield' }>;
+      if (customEvent.detail?.mode) {
+        setSceneModeState(customEvent.detail.mode);
+      }
+    };
 
     window.addEventListener('wizardchess:historychange', handleHistoryChange);
     window.addEventListener('wizardchess:effectschange', handleEffectsChange);
     window.addEventListener('wizardchess:aidifficultychange', handleAiDifficultyChange);
+    window.addEventListener('wizardchess:scenemodechange', handleSceneModeChange);
 
     const api = getWizardChessApi();
     if (api?.getMoveHistory) {
@@ -163,6 +173,10 @@ export default function App() {
     }
     if (api?.getEffectsEnabled) {
       setEffectsEnabled(api.getEffectsEnabled());
+    }
+    if (api?.getSceneMode) {
+      const cur = api.getSceneMode();
+      if (cur === 'castle' || cur === 'starfield') setSceneModeState(cur);
     }
     if (api?.AI_DIFFICULTY_LEVELS?.length) {
       setAiLevels(api.AI_DIFFICULTY_LEVELS);
@@ -176,6 +190,7 @@ export default function App() {
       window.removeEventListener('wizardchess:historychange', handleHistoryChange);
       window.removeEventListener('wizardchess:effectschange', handleEffectsChange);
       window.removeEventListener('wizardchess:aidifficultychange', handleAiDifficultyChange);
+      window.removeEventListener('wizardchess:scenemodechange', handleSceneModeChange);
     };
   }, []);
 
@@ -244,6 +259,11 @@ export default function App() {
     const next = !effectsEnabled;
     setEffectsEnabled(next);
     getWizardChessApi()?.setEffectsEnabled?.(next);
+  };
+
+  const handleSelectScene = (mode: 'castle' | 'starfield') => {
+    setSceneModeState(mode);
+    getWizardChessApi()?.setSceneMode?.(mode);
   };
 
   const handleSelectAiDifficulty = (id: string) => {
@@ -478,6 +498,29 @@ export default function App() {
             title={t('actions.camWide')}
           >
             {t('actions.camWide')}
+          </button>
+
+          <div className="hud-divider" aria-hidden="true"></div>
+          <div className="mobile-sheet-section-label">
+            <span>{t('sections.scene')}</span>
+            <span className="mobile-sheet-section-sub">{t('sections.sceneSub')}</span>
+          </div>
+
+          <button
+            className={`hud-btn ${sceneMode === 'castle' ? 'active' : ''}`}
+            id="btn-scene-castle"
+            title={t('actions.sceneCastle')}
+            onClick={() => handleSelectScene('castle')}
+          >
+            {t('actions.sceneCastle')}
+          </button>
+          <button
+            className={`hud-btn ${sceneMode === 'starfield' ? 'active' : ''}`}
+            id="btn-scene-star"
+            title={t('actions.sceneStar')}
+            onClick={() => handleSelectScene('starfield')}
+          >
+            {t('actions.sceneStar')}
           </button>
 
           <div className="hud-divider" aria-hidden="true"></div>
