@@ -1457,6 +1457,7 @@ export function initWizardChess() {
     // Chess Game State, Complete Move Rules, and AI Engine
     // =========================================================================
     let boardState = Array.from({ length: 8 }, () => Array(8).fill(null));
+    const inBounds = (nr, nc) => nr >= 0 && nr < 8 && nc >= 0 && nc < 8;
     let currentTurn = 'w';
     let selectedSquare = null;
     let validMoves = [];
@@ -2102,7 +2103,6 @@ export function initWizardChess() {
       const { type, color } = piece;
       const dir = color === 'w' ? -1 : 1;
 
-      const inBounds = (nr, nc) => nr >= 0 && nr < 8 && nc >= 0 && nc < 8;
       const addMove = (nr, nc) => {
         if (!inBounds(nr, nc)) return false;
         const target = board[nr][nc];
@@ -3094,8 +3094,42 @@ export function initWizardChess() {
     // =========================================================================
     const AI_DIFFICULTY_LEVELS = [
       {
-        id: 'novice',
+        id: 'rookie',
         tier: 1,
+        elo: 120,
+        depth: 1,
+        quiescenceDepth: 0,
+        captureWeight: 0.5,
+        hangAwareness: 0.05,
+        pstWeight: 0.02,
+        checkBonus: 10,
+        aggressionWeight: 0.35,
+        jitter: 260,
+        blunderChance: 0.45,
+        thinkDelayMs: 360,
+        maxThinkMs: 25,
+        maxNodes: 1000
+      },
+      {
+        id: 'scout',
+        tier: 2,
+        elo: 260,
+        depth: 1,
+        quiescenceDepth: 0,
+        captureWeight: 0.62,
+        hangAwareness: 0.12,
+        pstWeight: 0.08,
+        checkBonus: 14,
+        aggressionWeight: 0.42,
+        jitter: 220,
+        blunderChance: 0.35,
+        thinkDelayMs: 390,
+        maxThinkMs: 35,
+        maxNodes: 1500
+      },
+      {
+        id: 'novice',
+        tier: 3,
         elo: 400,
         depth: 1,
         quiescenceDepth: 0,
@@ -3112,7 +3146,7 @@ export function initWizardChess() {
       },
       {
         id: 'apprentice',
-        tier: 2,
+        tier: 4,
         elo: 750,
         depth: 1,
         quiescenceDepth: 0,
@@ -3129,7 +3163,7 @@ export function initWizardChess() {
       },
       {
         id: 'amateur',
-        tier: 3,
+        tier: 5,
         elo: 1100,
         depth: 1,
         quiescenceDepth: 0,
@@ -3146,7 +3180,7 @@ export function initWizardChess() {
       },
       {
         id: 'club',
-        tier: 4,
+        tier: 6,
         elo: 1450,
         depth: 2,
         quiescenceDepth: 0,
@@ -3163,7 +3197,7 @@ export function initWizardChess() {
       },
       {
         id: 'expert',
-        tier: 5,
+        tier: 7,
         elo: 1750,
         depth: 2,
         quiescenceDepth: 1,
@@ -3180,7 +3214,7 @@ export function initWizardChess() {
       },
       {
         id: 'master',
-        tier: 6,
+        tier: 8,
         elo: 2050,
         depth: 3,
         quiescenceDepth: 0,
@@ -3197,7 +3231,7 @@ export function initWizardChess() {
       },
       {
         id: 'grandmaster',
-        tier: 7,
+        tier: 9,
         elo: 2400,
         depth: 3,
         quiescenceDepth: 2,
@@ -3211,6 +3245,40 @@ export function initWizardChess() {
         thinkDelayMs: 600,
         maxThinkMs: 260,
         maxNodes: 26000
+      },
+      {
+        id: 'legend',
+        tier: 10,
+        elo: 2650,
+        depth: 4,
+        quiescenceDepth: 2,
+        captureWeight: 1.0,
+        hangAwareness: 1.0,
+        pstWeight: 1.3,
+        checkBonus: 40,
+        aggressionWeight: 1.25,
+        jitter: 1.0,
+        blunderChance: 0,
+        thinkDelayMs: 620,
+        maxThinkMs: 320,
+        maxNodes: 36000
+      },
+      {
+        id: 'oracle',
+        tier: 11,
+        elo: 2900,
+        depth: 5,
+        quiescenceDepth: 3,
+        captureWeight: 1.0,
+        hangAwareness: 1.0,
+        pstWeight: 1.4,
+        checkBonus: 44,
+        aggressionWeight: 1.3,
+        jitter: 0.4,
+        blunderChance: 0,
+        thinkDelayMs: 650,
+        maxThinkMs: 420,
+        maxNodes: 55000
       }
     ];
 
@@ -3226,7 +3294,11 @@ export function initWizardChess() {
     }
 
     function getAIDifficultyProfile(id = aiDifficultyId) {
-      return AI_DIFFICULTY_LEVELS.find((lvl) => lvl.id === id) || AI_DIFFICULTY_LEVELS[2];
+      return (
+        AI_DIFFICULTY_LEVELS.find((lvl) => lvl.id === id) ||
+        AI_DIFFICULTY_LEVELS.find((lvl) => lvl.id === 'amateur') ||
+        AI_DIFFICULTY_LEVELS[Math.floor(AI_DIFFICULTY_LEVELS.length / 2)]
+      );
     }
 
     function getAIDifficulty() {

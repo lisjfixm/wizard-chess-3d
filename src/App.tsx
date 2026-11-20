@@ -54,13 +54,17 @@ interface AIDifficultyLevel {
 }
 
 const AI_LEVEL_META: Array<{ id: string; tier: number; elo: number }> = [
-  { id: 'novice', tier: 1, elo: 400 },
-  { id: 'apprentice', tier: 2, elo: 750 },
-  { id: 'amateur', tier: 3, elo: 1100 },
-  { id: 'club', tier: 4, elo: 1450 },
-  { id: 'expert', tier: 5, elo: 1750 },
-  { id: 'master', tier: 6, elo: 2050 },
-  { id: 'grandmaster', tier: 7, elo: 2400 }
+  { id: 'rookie', tier: 1, elo: 120 },
+  { id: 'scout', tier: 2, elo: 260 },
+  { id: 'novice', tier: 3, elo: 400 },
+  { id: 'apprentice', tier: 4, elo: 750 },
+  { id: 'amateur', tier: 5, elo: 1100 },
+  { id: 'club', tier: 6, elo: 1450 },
+  { id: 'expert', tier: 7, elo: 1750 },
+  { id: 'master', tier: 8, elo: 2050 },
+  { id: 'grandmaster', tier: 9, elo: 2400 },
+  { id: 'legend', tier: 10, elo: 2650 },
+  { id: 'oracle', tier: 11, elo: 2900 }
 ];
 
 type Translator = (key: string, vars?: Record<string, string | number>) => string;
@@ -228,7 +232,12 @@ export default function App() {
   };
 
   const activeAiLevel = useMemo(() => {
-    return aiLevels.find((lvl) => lvl.id === aiDifficultyId) || aiLevels[2] || localizeAiLevels(t)[2];
+    return (
+      aiLevels.find((lvl) => lvl.id === aiDifficultyId) ||
+      aiLevels.find((lvl) => lvl.id === 'amateur') ||
+      aiLevels[Math.floor(aiLevels.length / 2)] ||
+      localizeAiLevels(t)[Math.floor(localizeAiLevels(t).length / 2)]
+    );
   }, [aiLevels, aiDifficultyId, t]);
 
   const handleToggleEffects = () => {
