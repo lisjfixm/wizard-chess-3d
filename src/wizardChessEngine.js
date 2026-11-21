@@ -118,7 +118,7 @@ export function initWizardChess() {
       'medium':     { pixelRatio: 1.5,  shadows: true,  stars: 1700, nebulae: 3, galaxies: 3, galaxyScale: 1.0,  meteors: 5, comets: 2, detail: false },
       'medium-high':{ pixelRatio: 1.75, shadows: true,  stars: 2300, nebulae: 3, galaxies: 3, galaxyScale: 1.15, meteors: 6, comets: 2, detail: true  },
       'high':       { pixelRatio: 2,    shadows: true,  stars: 3000, nebulae: 3, galaxies: 3, galaxyScale: 1.3,  meteors: 7, comets: 3, detail: true  },
-      'ultra':      { pixelRatio: 2,    shadows: true,  stars: 4000, nebulae: 4, galaxies: 6, galaxyScale: 1.5,  meteors: 9, comets: 3, detail: true, farStars: 1500, clusters: 5, planets: 4, twinkle: true, fireballs: 3, dustScale: 0.4, doubleTail: true }
+      'ultra':      { pixelRatio: 2,    shadows: true,  stars: 4000, nebulae: 4, galaxies: 6, galaxyScale: 1.5,  meteors: 12, comets: 4, detail: true, farStars: 2000, ultraFarStars: 2500, clusters: 6, globulars: 3, planets: 4, ringedPlanets: 2, distantGalaxies: 24, binaryStars: 6, motes: 60, emissionNebulae: 2, milkyWay: true, accretion: 220, supernovae: 3, twinkle: true, twinkleCount: 56, fireballs: 4, dustScale: 0.4, doubleTail: true }
     };
     const DEFAULT_QUALITY = 'medium';
     function resolveQualityLevel(raw) {
@@ -376,6 +376,458 @@ export function initWizardChess() {
       return list;
     }
 
+    // ---- Globular cluster: dense spherical core thinning outward (ultra) ----
+    function buildGlobularCluster(def) {
+      const { center, count, radius, color } = def;
+      const pos = new Float32Array(count * 3);
+      const col = new Float32Array(count * 3);
+      const cEdge = new THREE.Color(color);
+      const cCore = new THREE.Color(0xffffff);
+      for (let i = 0; i < count; i++) {
+        // exponential radial fall-off -> bright concentrated core
+        const r = radius * Math.pow(Math.random(), 2.4);
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        const gx = r * Math.sin(phi) * Math.cos(theta);
+        const gy = r * Math.cos(phi);
+        const gz = r * Math.sin(phi) * Math.sin(theta);
+        pos[i * 3] = center[0] + gx;
+        pos[i * 3 + 1] = center[1] + gy;
+        pos[i * 3 + 2] = center[2] + gz;
+        const t = Math.min(1, r / radius);
+        const c = cEdge.clone().lerp(cCore, 1 - t);
+        const dim = (1 - t * 0.5) * (0.6 + Math.random() * 0.4);
+        col[i * 3] = c.r * dim;
+        col[i * 3 + 1] = c.g * dim;
+        col[i * 3 + 2] = c.b * dim;
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      const mat = new THREE.PointsMaterial({
+        size: 0.13,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.95,
+        depthWrite: false,
+        sizeAttenuation: true
+      });
+      const group = new THREE.Group();
+      group.add(new THREE.Points(geo, mat));
+      const coreMat = new THREE.SpriteMaterial({
+        map: createNebulaTexture(),
+        color: 0xfff3d6,
+        transparent: true,
+        opacity: 0.55,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
+      });
+      const core = new THREE.Sprite(coreMat);
+      core.scale.set(radius * 0.8, radius * 0.8, 1);
+      group.add(core);
+      group.position.fromArray(center);
+      return group;
+    }
+
+    // ---- Ringed planet with an orbiting moon (ultra) ----
+    function buildRingedPlanet(def, tex) {
+      const group = new THREE.Group();
+      const bodyMat = new THREE.SpriteMaterial({
+        map: tex,
+        color: def.color,
+        transparent: true,
+        opacity: 0.85,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
+      });
+      const body = new THREE.Sprite(bodyMat);
+      body.scale.set(def.scale, def.scale, 1);
+      group.add(body);
+
+      const ringGeo = new THREE.RingGeometry(def.scale * 1.25, def.scale * 2.1, 48);
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: def.ringColor,
+        transparent: true,
+        opacity: 0.35,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
+      });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.rotation.x = Math.PI / 2 - (def.tilt || 0.35);
+      ring.rotation.z = def.tilt || 0.35;
+      group.add(ring);
+
+      const moonMat = new THREE.SpriteMaterial({
+        map: tex,
+        color: def.moonColor || 0xffffff,
+        transparent: true,
+        opacity: 0.8,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
+      });
+      const moon = new THREE.Sprite(moonMat);
+      const moonScale = def.moonScale || 0.32;
+      moon.scale.set(moonScale, moonScale, 1);
+      group.add(moon);
+
+      group.position.fromArray(def.pos);
+      group.userData.moon = moon;
+      group.userData.moonOrbit = def.moonOrbit || def.scale * 2.6;
+      group.userData.moonSpeed = def.moonSpeed || 0.5;
+      group.userData.moonPhase = Math.random() * Math.PI * 2;
+      return group;
+    }
+
+    // ---- Milky Way band: tilted dense star belt with soft glow backdrop (ultra) ----
+    function buildMilkyWay() {
+      const group = new THREE.Group();
+      const count = 900;
+      const pos = new Float32Array(count * 3);
+      const col = new Float32Array(count * 3);
+      // belt plane basis: tilted around X then Z
+      const normal = new THREE.Vector3(0.35, 1, 0.18).normalize();
+      const u = new THREE.Vector3(1, 0, 0).cross(normal).normalize();
+      const v = normal.clone().cross(u).normalize();
+      const center = new THREE.Vector3(0, 0, -6);
+      const beltR = 26;
+      const palette = [
+        new THREE.Color(0xffffff),
+        new THREE.Color(0x7ce8ff),
+        new THREE.Color(0x4dd0e1),
+        new THREE.Color(0xe040fb)
+      ];
+      for (let i = 0; i < count; i++) {
+        const ang = Math.random() * Math.PI * 2;
+        const r = beltR + randGaussian() * 2.2;
+        const thick = randGaussian() * 2.6;
+        const px = center.x + (u.x * Math.cos(ang) + v.x * Math.sin(ang)) * r + normal.x * thick;
+        const py = center.y + (u.y * Math.cos(ang) + v.y * Math.sin(ang)) * r + normal.y * thick;
+        const pz = center.z + (u.z * Math.cos(ang) + v.z * Math.sin(ang)) * r + normal.z * thick;
+        pos[i * 3] = px;
+        pos[i * 3 + 1] = py;
+        pos[i * 3 + 2] = pz;
+        const c = palette[Math.floor(Math.random() * palette.length)];
+        const dim = 0.3 + Math.random() * 0.5;
+        col[i * 3] = c.r * dim;
+        col[i * 3 + 1] = c.g * dim;
+        col[i * 3 + 2] = c.b * dim;
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      const mat = new THREE.PointsMaterial({
+        size: 0.12,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.85,
+        depthWrite: false,
+        sizeAttenuation: true
+      });
+      const belt = new THREE.Points(geo, mat);
+      group.add(belt);
+
+      const glowDefs = [
+        { color: 0x2a3570, scale: 46, opacity: 0.22, pos: [0, 0, -10] },
+        { color: 0x4dd0e1, scale: 30, opacity: 0.10, pos: [-8, 4, -12] },
+        { color: 0xe040fb, scale: 26, opacity: 0.08, pos: [9, -3, -12] }
+      ];
+      for (const g of glowDefs) {
+        const gmat = new THREE.SpriteMaterial({
+          map: createNebulaTexture(),
+          color: g.color,
+          transparent: true,
+          opacity: g.opacity,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        });
+        const gsp = new THREE.Sprite(gmat);
+        gsp.position.fromArray(g.pos);
+        gsp.scale.set(g.scale, g.scale, 1);
+        group.add(gsp);
+      }
+      group.userData.belt = belt;
+      return group;
+    }
+
+    // ---- Tiny distant background galaxies scattered across deep space (ultra) ----
+    function buildDistantGalaxies(count, tex) {
+      const list = [];
+      const palette = [0x7ce8ff, 0xe040fb, 0xffffff, 0xfff3d6];
+      for (let i = 0; i < count; i++) {
+        const r = 40 + Math.random() * 18;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        const mat = new THREE.SpriteMaterial({
+          map: tex,
+          color: palette[Math.floor(Math.random() * palette.length)],
+          transparent: true,
+          opacity: 0.35 + Math.random() * 0.35,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        });
+        const sp = new THREE.Sprite(mat);
+        sp.position.set(
+          r * Math.sin(phi) * Math.cos(theta),
+          r * Math.cos(phi) * 0.85,
+          r * Math.sin(phi) * Math.sin(theta)
+        );
+        const s = 0.15 + Math.random() * 0.25;
+        sp.scale.set(s * (1.3 + Math.random() * 0.8), s, 1);
+        list.push(sp);
+      }
+      return list;
+    }
+
+    // ---- Binary star systems: two bright stars orbiting a common core (ultra) ----
+    function buildBinaryStars(count, tex) {
+      const list = [];
+      const paletteA = [0xffffff, 0x7ce8ff, 0xfff3d6];
+      const paletteB = [0xe040fb, 0x4dd0e1, 0xb98cff];
+      for (let i = 0; i < count; i++) {
+        const r = 30 + Math.random() * 16;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        const center = new THREE.Vector3(
+          r * Math.sin(phi) * Math.cos(theta),
+          r * Math.cos(phi) * 0.85,
+          r * Math.sin(phi) * Math.sin(theta)
+        );
+        const matA = new THREE.SpriteMaterial({ map: tex, color: paletteA[i % paletteA.length], transparent: true, opacity: 0.95, depthWrite: false, blending: THREE.AdditiveBlending });
+        const matB = new THREE.SpriteMaterial({ map: tex, color: paletteB[i % paletteB.length], transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending });
+        const a = new THREE.Sprite(matA);
+        const b = new THREE.Sprite(matB);
+        const sA = 0.24 + Math.random() * 0.12;
+        const sB = 0.18 + Math.random() * 0.1;
+        a.scale.set(sA, sA, 1);
+        b.scale.set(sB, sB, 1);
+        list.push({
+          a, b, center,
+          orbitR: 0.35 + Math.random() * 0.35,
+          speed: 0.6 + Math.random() * 0.8,
+          phase: Math.random() * Math.PI * 2
+        });
+      }
+      return list;
+    }
+
+    // ---- Foreground drifting dust motes for parallax depth (ultra) ----
+    function buildForegroundMotes(count) {
+      const pos = new Float32Array(count * 3);
+      const vel = new Float32Array(count * 3);
+      for (let i = 0; i < count; i++) {
+        const r = 9 + Math.random() * 9;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        pos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+        pos[i * 3 + 1] = r * Math.cos(phi) * 0.8;
+        pos[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+        vel[i * 3] = (Math.random() - 0.5) * 0.35;
+        vel[i * 3 + 1] = (Math.random() - 0.5) * 0.25;
+        vel[i * 3 + 2] = (Math.random() - 0.5) * 0.35;
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      const mat = new THREE.PointsMaterial({
+        size: 0.07,
+        color: 0x9fdcff,
+        transparent: true,
+        opacity: 0.5,
+        depthWrite: false,
+        sizeAttenuation: true
+      });
+      const points = new THREE.Points(geo, mat);
+      points.userData.vel = vel;
+      return points;
+    }
+
+    // ---- Multi-cloud emission nebula with embedded bright stars (ultra) ----
+    function buildEmissionNebula(def, tex) {
+      const group = new THREE.Group();
+      const cloudScales = [1, 0.68, 0.45];
+      const cloudOpacity = [def.opacity, def.opacity * 0.8, def.opacity * 0.6];
+      const offsets = [[0, 0, 0], [0.35, -0.2, 0.1], [-0.3, 0.25, -0.05]];
+      for (let ci = 0; ci < def.colors.length; ci++) {
+        const cmat = new THREE.SpriteMaterial({
+          map: tex,
+          color: def.colors[ci],
+          transparent: true,
+          opacity: cloudOpacity[ci],
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        });
+        const csp = new THREE.Sprite(cmat);
+        csp.position.fromArray(offsets[ci]);
+        csp.scale.set(def.scale * cloudScales[ci], def.scale * cloudScales[ci], 1);
+        group.add(csp);
+      }
+      const starCount = 7;
+      for (let si = 0; si < starCount; si++) {
+        const smat = new THREE.SpriteMaterial({
+          map: tex,
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.7,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        });
+        const ssp = new THREE.Sprite(smat);
+        ssp.position.set(
+          (Math.random() - 0.5) * def.scale * 0.6,
+          (Math.random() - 0.5) * def.scale * 0.6,
+          (Math.random() - 0.5) * 0.3
+        );
+        const ss = 0.1 + Math.random() * 0.12;
+        ssp.scale.set(ss, ss, 1);
+        group.add(ssp);
+      }
+      group.position.fromArray(def.pos);
+      return group;
+    }
+
+    // ---- Ultra-distant extremely faint star shell (ultra) ----
+    function buildUltraFarStars(count) {
+      const pos = new Float32Array(count * 3);
+      const col = new Float32Array(count * 3);
+      const palette = [
+        new THREE.Color(0xffffff),
+        new THREE.Color(0x7ce8ff),
+        new THREE.Color(0xb98cff)
+      ];
+      for (let i = 0; i < count; i++) {
+        const r = 55 + Math.random() * 18;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        pos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+        pos[i * 3 + 1] = r * Math.cos(phi) * 0.85;
+        pos[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+        const c = palette[Math.floor(Math.random() * palette.length)];
+        const dim = 0.10 + Math.random() * 0.16;
+        col[i * 3] = c.r * dim;
+        col[i * 3 + 1] = c.g * dim;
+        col[i * 3 + 2] = c.b * dim;
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      const mat = new THREE.PointsMaterial({
+        size: 0.09,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.7,
+        depthWrite: false,
+        sizeAttenuation: true
+      });
+      return new THREE.Points(geo, mat);
+    }
+
+    // ---- Gravitational accretion disk: stars slowly spiral inward to a core (ultra) ----
+    function buildAccretion(def, tex) {
+      const group = new THREE.Group();
+      const innerR = def.innerR || 0.6;
+      const outerR = def.outerR || 6.0;
+      const states = [];
+      const pos = new Float32Array(def.count * 3);
+      const col = new Float32Array(def.count * 3);
+      const cInner = new THREE.Color(0xfff3d6);
+      const cMid = new THREE.Color(0x4dd0e1);
+      const cOuter = new THREE.Color(0xe040fb);
+      for (let i = 0; i < def.count; i++) {
+        const r = innerR + Math.random() * (outerR - innerR);
+        const angle = Math.random() * Math.PI * 2;
+        states.push({
+          r,
+          angle,
+          speed: 0.28 / Math.sqrt(Math.max(r, 0.4)),
+          infall: 0.006 + Math.random() * 0.006,
+          thick: randGaussian() * 0.35 * (r / outerR)
+        });
+        pos[i * 3] = Math.cos(angle) * r;
+        pos[i * 3 + 1] = states[i].thick;
+        pos[i * 3 + 2] = Math.sin(angle) * r;
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      const mat = new THREE.PointsMaterial({
+        size: 0.13,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.95,
+        depthWrite: false,
+        sizeAttenuation: true
+      });
+      const disk = new THREE.Points(geo, mat);
+      group.add(disk);
+
+      // dense dark core with a bright additive halo
+      const coreMat = new THREE.SpriteMaterial({
+        map: tex,
+        color: 0x05071a,
+        transparent: true,
+        opacity: 0.95,
+        depthWrite: false
+      });
+      const core = new THREE.Sprite(coreMat);
+      core.scale.set(innerR * 1.4, innerR * 1.4, 1);
+      group.add(core);
+
+      const haloMat = new THREE.SpriteMaterial({
+        map: tex,
+        color: def.haloColor || 0x4dd0e1,
+        transparent: true,
+        opacity: 0.5,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
+      });
+      const halo = new THREE.Sprite(haloMat);
+      halo.scale.set(innerR * 3.2, innerR * 3.2, 1);
+      group.add(halo);
+
+      group.position.fromArray(def.center);
+      group.rotation.x = def.tiltX || 0.5;
+      group.rotation.z = def.tiltZ || -0.2;
+      group.userData.disk = disk;
+      group.userData.states = states;
+      group.userData.core = core;
+      group.userData.halo = halo;
+      group.userData.innerR = innerR;
+      group.userData.outerR = outerR;
+      group.userData.cInner = cInner;
+      group.userData.cMid = cMid;
+      group.userData.cOuter = cOuter;
+      return group;
+    }
+
+    // ---- Occasional distant supernova flash: long wait, brief bright burst (ultra) ----
+    function buildSupernovae(count, tex) {
+      const list = [];
+      for (let i = 0; i < count; i++) {
+        const r = 34 + Math.random() * 20;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        const mat = new THREE.SpriteMaterial({
+          map: tex,
+          color: i % 2 === 0 ? 0xffffff : 0x7ce8ff,
+          transparent: true,
+          opacity: 0,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        });
+        const sp = new THREE.Sprite(mat);
+        sp.position.set(
+          r * Math.sin(phi) * Math.cos(theta),
+          r * Math.cos(phi) * 0.85,
+          r * Math.sin(phi) * Math.sin(theta)
+        );
+        const baseScale = 0.3 + Math.random() * 0.2;
+        sp.scale.set(baseScale, baseScale, 1);
+        sp.userData = { state: 'wait', life: 0, wait: 4 + Math.random() * 10, maxLife: 1.4 + Math.random() * 0.8, baseScale };
+        list.push(sp);
+      }
+      return list;
+    }
+
     function createStarfieldGroup(preset) {
       const group = new THREE.Group();
       const p = preset || QUALITY_PRESETS[DEFAULT_QUALITY];
@@ -428,6 +880,12 @@ export function initWizardChess() {
         group.add(buildFarStars(p.farStars));
       }
 
+      // ---- Ultra-distant extremely faint star shell (ultra) ----
+      if (p.ultraFarStars) {
+        group.add(buildUltraFarStars(p.ultraFarStars));
+      }
+
+      const nebulae = [];
       const nebulaDefs = [
         { color: 0x4dd0e1, pos: [-15, 7, -24], scale: 28, opacity: 0.20 },
         { color: 0xe040fb, pos: [16, 4, -20], scale: 25, opacity: 0.18 },
@@ -447,6 +905,9 @@ export function initWizardChess() {
         const sp = new THREE.Sprite(mat);
         sp.position.fromArray(n.pos);
         sp.scale.set(n.scale, n.scale, 1);
+        sp.userData.baseOpacity = n.opacity;
+        sp.userData.phase = Math.random() * Math.PI * 2;
+        nebulae.push(sp);
         group.add(sp);
       }
 
@@ -489,7 +950,8 @@ export function initWizardChess() {
       const cometDefs = [
         { cx: 0, cy: 10, cz: -32, orbitR: 10, speed: 0.05, phase: 0, color: 0x7ce8ff, tailColor: 0x4dd0e1 },
         { cx: -12, cy: -1, cz: -30, orbitR: 9, speed: -0.04, phase: 2.1, color: 0xffffff, tailColor: 0xe040fb },
-        { cx: 11, cy: 3, cz: -31, orbitR: 8, speed: 0.045, phase: 4.0, color: 0x7ce8ff, tailColor: 0xe040fb }
+        { cx: 11, cy: 3, cz: -31, orbitR: 8, speed: 0.045, phase: 4.0, color: 0x7ce8ff, tailColor: 0xe040fb },
+        { cx: -4, cy: -8, cz: -30, orbitR: 10, speed: -0.038, phase: 5.2, color: 0xfff3d6, tailColor: 0x7ce8ff }
       ];
       for (let c = 0; c < Math.min(p.comets, cometDefs.length); c++) {
         const cdef = cometDefs[c];
@@ -518,7 +980,8 @@ export function initWizardChess() {
         { center: [12, -8, -30], count: 80, radius: 1.4, color: 0xe040fb },
         { center: [20, 8, -33], count: 70, radius: 1.3, color: 0xffffff },
         { center: [-20, -2, -29], count: 80, radius: 1.5, color: 0x4dd0e1 },
-        { center: [4, -13, -31], count: 70, radius: 1.2, color: 0xffffff }
+        { center: [4, -13, -31], count: 70, radius: 1.2, color: 0xffffff },
+        { center: [-3, 6, -30], count: 75, radius: 1.3, color: 0xb98cff }
       ];
       for (let ci = 0; ci < Math.min(p.clusters || 0, clusterDefs.length); ci++) {
         const cluster = buildStarCluster(clusterDefs[ci]);
@@ -540,8 +1003,81 @@ export function initWizardChess() {
         group.add(planet);
       }
 
+      // ---- Globular clusters (ultra) ----
+      const globulars = [];
+      const globularDefs = [
+        { center: [-16, -10, -32], count: 120, radius: 1.5, color: 0x7ce8ff },
+        { center: [18, 10, -33], count: 110, radius: 1.4, color: 0xfff3d6 },
+        { center: [0, -16, -30], count: 100, radius: 1.3, color: 0xe040fb }
+      ];
+      for (let gi = 0; gi < Math.min(p.globulars || 0, globularDefs.length); gi++) {
+        const glob = buildGlobularCluster(globularDefs[gi]);
+        globulars.push(glob);
+        group.add(glob);
+      }
+
+      // ---- Ringed planets with moons (ultra) ----
+      const ringedPlanets = [];
+      const ringedDefs = [
+        { pos: [-26, -8, -26], scale: 1.8, color: 0x4dd0e1, ringColor: 0x7ce8ff, tilt: 0.4, moonColor: 0xffffff, moonOrbit: 4.6 },
+        { pos: [25, 12, -28], scale: 1.5, color: 0xe040fb, ringColor: 0xfff3d6, tilt: -0.3, moonColor: 0x7ce8ff, moonOrbit: 3.8 }
+      ];
+      for (let ri = 0; ri < Math.min(p.ringedPlanets || 0, ringedDefs.length); ri++) {
+        const rp = buildRingedPlanet(ringedDefs[ri], nebulaTex);
+        ringedPlanets.push(rp);
+        group.add(rp);
+      }
+
+      // ---- Milky Way belt (ultra) ----
+      let milkyWay = null;
+      if (p.milkyWay) {
+        milkyWay = buildMilkyWay();
+        group.add(milkyWay);
+      }
+
+      // ---- Tiny distant background galaxies (ultra) ----
+      const distantGalaxies = buildDistantGalaxies(p.distantGalaxies || 0, nebulaTex);
+      for (const sp of distantGalaxies) group.add(sp);
+
+      // ---- Binary star systems (ultra) ----
+      const binaryStars = buildBinaryStars(p.binaryStars || 0, nebulaTex);
+      for (const bs of binaryStars) { group.add(bs.a); group.add(bs.b); }
+
+      // ---- Foreground drifting dust motes (ultra) ----
+      let motes = null;
+      if (p.motes) {
+        motes = buildForegroundMotes(p.motes);
+        group.add(motes);
+      }
+
+      // ---- Multi-cloud emission nebulae (ultra) ----
+      const emissionNebulae = [];
+      const emissionDefs = [
+        { pos: [-20, 2, -26], scale: 16, opacity: 0.22, colors: [0x4dd0e1, 0x7ce8ff, 0xe040fb] },
+        { pos: [20, -4, -27], scale: 15, opacity: 0.20, colors: [0xe040fb, 0x4dd0e1, 0xb98cff] }
+      ];
+      for (let ei = 0; ei < Math.min(p.emissionNebulae || 0, emissionDefs.length); ei++) {
+        const en = buildEmissionNebula(emissionDefs[ei], nebulaTex);
+        emissionNebulae.push(en);
+        group.add(en);
+      }
+
+      // ---- Gravitational accretion disk (ultra) ----
+      let accretion = null;
+      if (p.accretion) {
+        accretion = buildAccretion(
+          { center: [0, 2, -34], count: p.accretion, innerR: 0.6, outerR: 6.0, haloColor: 0x4dd0e1, tiltX: 0.5, tiltZ: -0.2 },
+          nebulaTex
+        );
+        group.add(accretion);
+      }
+
+      // ---- Occasional supernova flashes (ultra) ----
+      const supernovae = buildSupernovae(p.supernovae || 0, nebulaTex);
+      for (const sp of supernovae) group.add(sp);
+
       // ---- Twinkling bright stars (ultra) ----
-      const twinkles = p.twinkle ? buildTwinkleStars(42, nebulaTex) : [];
+      const twinkles = p.twinkle ? buildTwinkleStars(p.twinkleCount || 42, nebulaTex) : [];
       for (const sp of twinkles) group.add(sp);
 
       group.userData.galaxies = galaxies;
@@ -549,6 +1085,16 @@ export function initWizardChess() {
       group.userData.comets = comets;
       group.userData.clusters = clusters;
       group.userData.planets = planets;
+      group.userData.nebulae = nebulae;
+      group.userData.globulars = globulars;
+      group.userData.ringedPlanets = ringedPlanets;
+      group.userData.milkyWay = milkyWay;
+      group.userData.distantGalaxies = distantGalaxies;
+      group.userData.binaryStars = binaryStars;
+      group.userData.motes = motes;
+      group.userData.emissionNebulae = emissionNebulae;
+      group.userData.accretion = accretion;
+      group.userData.supernovae = supernovae;
       group.userData.twinkles = twinkles;
       group.userData.preset = { ...p };
       group.visible = false;
@@ -626,6 +1172,118 @@ export function initWizardChess() {
         for (const s of bodies.twinkles) {
           s.userData.phase += dt * s.userData.speed;
           s.material.opacity = s.userData.base * (0.65 + 0.35 * Math.sin(s.userData.phase));
+        }
+      }
+
+      // ---- Nebula breathing ----
+      if (bodies.nebulae) {
+        for (const n of bodies.nebulae) {
+          n.userData.phase += dt * 0.4;
+          n.material.opacity = n.userData.baseOpacity * (0.85 + 0.15 * Math.sin(n.userData.phase));
+        }
+      }
+
+      // ---- Binary stars orbit their common core ----
+      if (bodies.binaryStars) {
+        for (const bs of bodies.binaryStars) {
+          bs.phase += bs.speed * dt;
+          const ox = Math.cos(bs.phase) * bs.orbitR;
+          const oz = Math.sin(bs.phase) * bs.orbitR;
+          bs.a.position.set(bs.center.x + ox, bs.center.y, bs.center.z + oz);
+          bs.b.position.set(bs.center.x - ox, bs.center.y, bs.center.z - oz);
+        }
+      }
+
+      // ---- Ringed planet moons ----
+      if (bodies.ringedPlanets) {
+        for (const rp of bodies.ringedPlanets) {
+          const ud = rp.userData;
+          ud.moonPhase += ud.moonSpeed * dt;
+          ud.moon.position.set(
+            Math.cos(ud.moonPhase) * ud.moonOrbit,
+            0.3 * Math.sin(ud.moonPhase * 2),
+            Math.sin(ud.moonPhase) * ud.moonOrbit
+          );
+        }
+      }
+
+      // ---- Foreground motes drift and wrap ----
+      if (bodies.motes) {
+        const pts = bodies.motes;
+        const attr = pts.geometry.attributes.position;
+        const vel = pts.userData.vel;
+        for (let i = 0; i < attr.count; i++) {
+          let x = attr.getX(i) + vel[i * 3] * dt;
+          let y = attr.getY(i) + vel[i * 3 + 1] * dt;
+          let z = attr.getZ(i) + vel[i * 3 + 2] * dt;
+          const len = Math.sqrt(x * x + y * y + z * z);
+          if (len > 20 || len < 7) {
+            vel[i * 3] *= -1;
+            vel[i * 3 + 1] *= -1;
+            vel[i * 3 + 2] *= -1;
+          }
+          attr.setXYZ(i, x, y, z);
+        }
+        attr.needsUpdate = true;
+      }
+
+      // ---- Milky Way belt slow rotation ----
+      if (bodies.milkyWay) {
+        bodies.milkyWay.rotation.y += dt * 0.005;
+      }
+
+      // ---- Accretion disk: stars slowly spiral inward to the core ----
+      if (bodies.accretion) {
+        const acc = bodies.accretion;
+        const ud = acc.userData;
+        const posAttr = ud.disk.geometry.attributes.position;
+        const colAttr = ud.disk.geometry.attributes.color;
+        const { innerR, outerR, cInner, cMid, cOuter } = ud;
+        for (let i = 0; i < ud.states.length; i++) {
+          const s = ud.states[i];
+          s.angle += s.speed * dt;
+          s.r -= s.infall * dt;
+          if (s.r < innerR) {
+            s.r = outerR;
+            s.angle = Math.random() * Math.PI * 2;
+          }
+          posAttr.setXYZ(i, Math.cos(s.angle) * s.r, s.thick, Math.sin(s.angle) * s.r);
+          const t = (s.r - innerR) / (outerR - innerR);
+          const c = t < 0.5 ? cInner.clone().lerp(cMid, t * 2) : cMid.clone().lerp(cOuter, (t - 0.5) * 2);
+          const bright = (1 - t * 0.45) * 0.9;
+          colAttr.setXYZ(i, c.r * bright, c.g * bright, c.b * bright);
+        }
+        posAttr.needsUpdate = true;
+        colAttr.needsUpdate = true;
+        ud.t = (ud.t || 0) + dt;
+        ud.halo.material.opacity = 0.5 + 0.12 * Math.sin(ud.t * 2);
+      }
+
+      // ---- Supernova flash lifecycle ----
+      if (bodies.supernovae) {
+        for (const sn of bodies.supernovae) {
+          const ud = sn.userData;
+          ud.life += dt;
+          if (ud.state === 'wait') {
+            sn.material.opacity = 0;
+            if (ud.life >= ud.wait) {
+              ud.state = 'burst';
+              ud.life = 0;
+              ud.maxLife = 1.4 + Math.random() * 0.8;
+            }
+          } else {
+            const k = Math.min(1, ud.life / ud.maxLife);
+            const fade = Math.sin(k * Math.PI);
+            sn.material.opacity = fade * 0.95;
+            const sc = ud.baseScale * (1 + k * 1.6);
+            sn.scale.set(sc, sc, 1);
+            if (k >= 1) {
+              ud.state = 'wait';
+              ud.life = 0;
+              ud.wait = 6 + Math.random() * 12;
+              sn.scale.set(ud.baseScale, ud.baseScale, 1);
+            }
+          }
         }
       }
     }
@@ -6645,8 +7303,18 @@ export function initWizardChess() {
           nebulae: starfieldGroup.userData.preset?.nebulae ?? null,
           detail: Boolean(starfieldGroup.userData.preset?.detail),
           farStars: starfieldGroup.userData.preset?.farStars ?? 0,
+          ultraFarStars: starfieldGroup.userData.preset?.ultraFarStars ?? 0,
           clusters: (starfieldGroup.userData.clusters || []).length,
+          globulars: (starfieldGroup.userData.globulars || []).length,
           planets: (starfieldGroup.userData.planets || []).length,
+          ringedPlanets: (starfieldGroup.userData.ringedPlanets || []).length,
+          distantGalaxies: (starfieldGroup.userData.distantGalaxies || []).length,
+          binaryStars: (starfieldGroup.userData.binaryStars || []).length,
+          motes: starfieldGroup.userData.preset?.motes ?? 0,
+          emissionNebulae: (starfieldGroup.userData.emissionNebulae || []).length,
+          milkyWay: Boolean(starfieldGroup.userData.milkyWay),
+          accretion: starfieldGroup.userData.preset?.accretion ?? 0,
+          supernovae: (starfieldGroup.userData.supernovae || []).length,
           twinkles: (starfieldGroup.userData.twinkles || []).length,
           fireballs: (starfieldGroup.userData.meteors || []).filter((m) => m.fireball).length
         },
