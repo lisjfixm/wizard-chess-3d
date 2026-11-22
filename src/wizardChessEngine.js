@@ -476,6 +476,11 @@ export function initWizardChess() {
       group.userData.moonOrbit = def.moonOrbit || def.scale * 2.6;
       group.userData.moonSpeed = def.moonSpeed || 0.5;
       group.userData.moonPhase = Math.random() * Math.PI * 2;
+      moon.position.set(
+        Math.cos(group.userData.moonPhase) * group.userData.moonOrbit,
+        0.3 * Math.sin(group.userData.moonPhase * 2),
+        Math.sin(group.userData.moonPhase) * group.userData.moonOrbit
+      );
       return group;
     }
 
@@ -601,11 +606,17 @@ export function initWizardChess() {
         const sB = 0.18 + Math.random() * 0.1;
         a.scale.set(sA, sA, 1);
         b.scale.set(sB, sB, 1);
+        const orbitR = 0.35 + Math.random() * 0.35;
+        const phase = Math.random() * Math.PI * 2;
+        const ox = Math.cos(phase) * orbitR;
+        const oz = Math.sin(phase) * orbitR;
+        a.position.set(center.x + ox, center.y, center.z + oz);
+        b.position.set(center.x - ox, center.y, center.z - oz);
         list.push({
           a, b, center,
-          orbitR: 0.35 + Math.random() * 0.35,
+          orbitR,
           speed: 0.6 + Math.random() * 0.8,
-          phase: Math.random() * Math.PI * 2
+          phase
         });
       }
       return list;
@@ -745,6 +756,23 @@ export function initWizardChess() {
         pos[i * 3] = Math.cos(angle) * r;
         pos[i * 3 + 1] = states[i].thick;
         pos[i * 3 + 2] = Math.sin(angle) * r;
+        const t = (r - innerR) / (outerR - innerR);
+        let cr, cg, cb;
+        if (t < 0.5) {
+          const k = t * 2;
+          cr = cInner.r + (cMid.r - cInner.r) * k;
+          cg = cInner.g + (cMid.g - cInner.g) * k;
+          cb = cInner.b + (cMid.b - cInner.b) * k;
+        } else {
+          const k = (t - 0.5) * 2;
+          cr = cMid.r + (cOuter.r - cMid.r) * k;
+          cg = cMid.g + (cOuter.g - cMid.g) * k;
+          cb = cMid.b + (cOuter.b - cMid.b) * k;
+        }
+        const bright = (1 - t * 0.45) * 0.9;
+        col[i * 3] = cr * bright;
+        col[i * 3 + 1] = cg * bright;
+        col[i * 3 + 2] = cb * bright;
       }
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -1249,9 +1277,20 @@ export function initWizardChess() {
           }
           posAttr.setXYZ(i, Math.cos(s.angle) * s.r, s.thick, Math.sin(s.angle) * s.r);
           const t = (s.r - innerR) / (outerR - innerR);
-          const c = t < 0.5 ? cInner.clone().lerp(cMid, t * 2) : cMid.clone().lerp(cOuter, (t - 0.5) * 2);
+          let cr, cg, cb;
+          if (t < 0.5) {
+            const k = t * 2;
+            cr = cInner.r + (cMid.r - cInner.r) * k;
+            cg = cInner.g + (cMid.g - cInner.g) * k;
+            cb = cInner.b + (cMid.b - cInner.b) * k;
+          } else {
+            const k = (t - 0.5) * 2;
+            cr = cMid.r + (cOuter.r - cMid.r) * k;
+            cg = cMid.g + (cOuter.g - cMid.g) * k;
+            cb = cMid.b + (cOuter.b - cMid.b) * k;
+          }
           const bright = (1 - t * 0.45) * 0.9;
-          colAttr.setXYZ(i, c.r * bright, c.g * bright, c.b * bright);
+          colAttr.setXYZ(i, cr * bright, cg * bright, cb * bright);
         }
         posAttr.needsUpdate = true;
         colAttr.needsUpdate = true;
