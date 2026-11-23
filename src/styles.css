@@ -376,6 +376,43 @@ html, body, #root {
   white-space: nowrap;
 }
 
+.ai-auto-sub {
+  margin: 0 0 10px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.ai-side-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ai-side-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.75rem;
+  color: var(--text);
+}
+
+.ai-side-select {
+  flex: 1;
+  max-width: 58%;
+}
+
+.ai-auto-side-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .ai-level-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

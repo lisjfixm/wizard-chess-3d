@@ -92,6 +92,9 @@ interface WizardChessApi {
   AI_DIFFICULTY_LEVELS?: AIDifficultyLevel[];
   setAIDifficulty?: (id: string) => AIDifficultyLevel;
   getAIDifficulty?: () => AIDifficultyLevel;
+  setAutoPlayMode?: (enabled: boolean) => { mode: string; whiteAiId: string; blackAiId: string };
+  getAutoPlayState?: () => { mode: string; whiteAiId: string; blackAiId: string };
+  setSideAIDifficulty?: (color: 'w' | 'b', id: string) => { whiteAiId: string; blackAiId: string };
   getMoveHistory?: () => MoveHistoryState;
   inspectHistoryMove?: (index: number) => boolean;
   exitHistoryReview?: (restoreCamera?: boolean) => boolean;
@@ -119,6 +122,9 @@ export default function App() {
     localizeAiLevels(createTranslator(detectInitialLanguage()))
   );
   const [aiDifficultyId, setAiDifficultyId] = useState<string>('amateur');
+  const [autoPlay, setAutoPlay] = useState<'single' | 'auto'>('single');
+  const [whiteAiId, setWhiteAiId] = useState<string>('amateur');
+  const [blackAiId, setBlackAiId] = useState<string>('amateur');
   const [aiSettingsCollapsed, setAiSettingsCollapsed] = useState(false);
   const [historyCollapsed, setHistoryCollapsed] = useState(false);
   const [insightCollapsed, setInsightCollapsed] = useState(false);
@@ -161,6 +167,20 @@ export default function App() {
         setAiDifficultyId(customEvent.detail.id);
       }
     };
+    const handleAutoPlayChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{
+        mode: string;
+        whiteAiId?: string;
+        blackAiId?: string;
+      }>;
+      const detail = customEvent.detail;
+      if (!detail) return;
+      if (detail.mode === 'auto' || detail.mode === 'single') {
+        setAutoPlay(detail.mode);
+      }
+      if (detail.whiteAiId) setWhiteAiId(detail.whiteAiId);
+      if (detail.blackAiId) setBlackAiId(detail.blackAiId);
+    };
     const handleSceneModeChange = (e: Event) => {
       const customEvent = e as CustomEvent<{ mode: 'castle' | 'starfield' }>;
       if (customEvent.detail?.mode) {
@@ -177,6 +197,7 @@ export default function App() {
     window.addEventListener('wizardchess:historychange', handleHistoryChange);
     window.addEventListener('wizardchess:effectschange', handleEffectsChange);
     window.addEventListener('wizardchess:aidifficultychange', handleAiDifficultyChange);
+    window.addEventListener('wizardchess:autoplaychange', handleAutoPlayChange);
     window.addEventListener('wizardchess:scenemodechange', handleSceneModeChange);
     window.addEventListener('wizardchess:qualitychange', handleQualityChange);
 
@@ -202,11 +223,18 @@ export default function App() {
       const cur = api.getAIDifficulty();
       if (cur?.id) setAiDifficultyId(cur.id);
     }
+    if (api?.getAutoPlayState) {
+      const auto = api.getAutoPlayState();
+      if (auto?.mode === 'auto' || auto?.mode === 'single') setAutoPlay(auto.mode);
+      if (auto?.whiteAiId) setWhiteAiId(auto.whiteAiId);
+      if (auto?.blackAiId) setBlackAiId(auto.blackAiId);
+    }
 
     return () => {
       window.removeEventListener('wizardchess:historychange', handleHistoryChange);
       window.removeEventListener('wizardchess:effectschange', handleEffectsChange);
       window.removeEventListener('wizardchess:aidifficultychange', handleAiDifficultyChange);
+      window.removeEventListener('wizardchess:autoplaychange', handleAutoPlayChange);
       window.removeEventListener('wizardchess:scenemodechange', handleSceneModeChange);
       window.removeEventListener('wizardchess:qualitychange', handleQualityChange);
     };
@@ -273,6 +301,11 @@ export default function App() {
     );
   }, [aiLevels, aiDifficultyId, t]);
 
+  const sideAiLevel = (id: string) =>
+    aiLevels.find((lvl) => lvl.id === id) ||
+    aiLevels.find((lvl) => lvl.id === 'amateur') ||
+    activeAiLevel;
+
   const handleToggleEffects = () => {
     const next = !effectsEnabled;
     setEffectsEnabled(next);
@@ -293,6 +326,18 @@ export default function App() {
   const handleSelectAiDifficulty = (id: string) => {
     setAiDifficultyId(id);
     getWizardChessApi()?.setAIDifficulty?.(id);
+  };
+
+  const handleToggleAutoPlay = () => {
+    const next = autoPlay === 'auto' ? 'single' : 'auto';
+    setAutoPlay(next);
+    getWizardChessApi()?.setAutoPlayMode?.(next === 'auto');
+  };
+
+  const handleSelectSideAi = (color: 'w' | 'b', id: string) => {
+    if (color === 'w') setWhiteAiId(id);
+    else setBlackAiId(id);
+    getWizardChessApi()?.setSideAIDifficulty?.(color, id);
   };
 
   const handleChangeLang = (next: string) => {
@@ -464,6 +509,17 @@ export default function App() {
 
           <div className="mobile-sheet-section-label">{t('sections.ops')}</div>
 
+          <button
+            className={`hud-btn ${autoPlay === 'auto' ? 'active' : ''}`}
+            id="btn-mode-toggle"
+            title={autoPlay === 'auto' ? t('actions.modeSingle') : t('actions.modeAuto')}
+            onClick={() => {
+              handleToggleAutoPlay();
+              setMobileSheetOpen(false);
+            }}
+          >
+            {autoPlay === 'auto' ? t('actions.modeSingle') : t('actions.modeAuto')}
+          </button>
           <button
             className="hud-btn"
             id="btn-side-toggle"
@@ -663,57 +719,105 @@ export default function App() {
 
               {!aiSettingsCollapsed && (
                 <div className="ai-settings-body">
-                  <div className="ai-strength-row">
-                    <div className="ai-strength-bars" aria-hidden="true">
-                      {aiLevels.map((lvl) => (
-                        <span
-                          key={lvl.id}
-                          className={`ai-strength-bar ${lvl.tier <= activeAiLevel.tier ? 'filled' : ''}`}
-                        ></span>
-                      ))}
-                    </div>
-                    <span className="ai-elo-label">{t('ai.elo', { elo: activeAiLevel.elo })}</span>
-                  </div>
+                  {autoPlay === 'auto' ? (
+                    <>
+                      <p className="ai-auto-sub">{t('ai.autoSub')}</p>
+                      <div className="ai-side-row">
+                        <label className="ai-side-label">
+                          <span>{t('ai.sideWhiteAi')}</span>
+                          <select
+                            className="lang-select ai-side-select"
+                            value={whiteAiId}
+                            aria-label={t('ai.sideWhiteAi')}
+                            onChange={(e) => handleSelectSideAi('w', e.target.value)}
+                          >
+                            {aiLevels.map((lvl) => (
+                              <option key={lvl.id} value={lvl.id}>
+                                Lv.{lvl.tier} {lvl.shortName}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="ai-side-label">
+                          <span>{t('ai.sideBlackAi')}</span>
+                          <select
+                            className="lang-select ai-side-select"
+                            value={blackAiId}
+                            aria-label={t('ai.sideBlackAi')}
+                            onChange={(e) => handleSelectSideAi('b', e.target.value)}
+                          >
+                            {aiLevels.map((lvl) => (
+                              <option key={lvl.id} value={lvl.id}>
+                                Lv.{lvl.tier} {lvl.shortName}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                      <div className="ai-auto-side-summary">
+                        <span>
+                          {t('ai.elo', { elo: sideAiLevel(whiteAiId).elo })}
+                        </span>
+                        <span>
+                          {t('ai.elo', { elo: sideAiLevel(blackAiId).elo })}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="ai-strength-row">
+                        <div className="ai-strength-bars" aria-hidden="true">
+                          {aiLevels.map((lvl) => (
+                            <span
+                              key={lvl.id}
+                              className={`ai-strength-bar ${lvl.tier <= activeAiLevel.tier ? 'filled' : ''}`}
+                            ></span>
+                          ))}
+                        </div>
+                        <span className="ai-elo-label">{t('ai.elo', { elo: activeAiLevel.elo })}</span>
+                      </div>
 
-                  <div className="ai-level-grid" id="ai-level-grid" role="group" aria-label={t('sections.ai')}>
-                    {aiLevels.map((lvl) => {
-                      const isActive = lvl.id === activeAiLevel.id;
-                      return (
-                        <button
-                          key={lvl.id}
-                          type="button"
-                          className={`ai-level-btn ${isActive ? 'active' : ''}`}
-                          aria-pressed={isActive}
-                          onClick={() => handleSelectAiDifficulty(lvl.id)}
-                          title={`Lv.${lvl.tier} ${lvl.name} · ${t('ai.elo', { elo: lvl.elo })} — ${lvl.styleTag}`}
-                        >
-                          <span className="ai-level-num">{lvl.tier}</span>
-                          <span className="ai-level-name">{lvl.shortName}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                      <div className="ai-level-grid" id="ai-level-grid" role="group" aria-label={t('sections.ai')}>
+                        {aiLevels.map((lvl) => {
+                          const isActive = lvl.id === activeAiLevel.id;
+                          return (
+                            <button
+                              key={lvl.id}
+                              type="button"
+                              className={`ai-level-btn ${isActive ? 'active' : ''}`}
+                              aria-pressed={isActive}
+                              onClick={() => handleSelectAiDifficulty(lvl.id)}
+                              title={`Lv.${lvl.tier} ${lvl.name} · ${t('ai.elo', { elo: lvl.elo })} — ${lvl.styleTag}`}
+                            >
+                              <span className="ai-level-num">{lvl.tier}</span>
+                              <span className="ai-level-name">{lvl.shortName}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
 
-                  <div className="ai-tactics-card" id="ai-tactics-hint" aria-live="polite">
-                    <div className="ai-tactics-header">
-                      <svg
-                        className="ai-tactics-icon"
-                        viewBox="0 0 16 16"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        aria-hidden="true"
-                      >
-                        <circle cx="8" cy="8" r="5.75" />
-                        <path d="M10.5 5.5L8.9 8.9L5.5 10.5L7.1 7.1L10.5 5.5Z" />
-                      </svg>
-                      <span className="ai-tactics-fullname">{activeAiLevel.name}</span>
-                      <span className="ai-tactics-tag">{activeAiLevel.styleTag}</span>
-                    </div>
-                    <p className="ai-tactics-desc">{activeAiLevel.tacticalHint}</p>
-                  </div>
+                      <div className="ai-tactics-card" id="ai-tactics-hint" aria-live="polite">
+                        <div className="ai-tactics-header">
+                          <svg
+                            className="ai-tactics-icon"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden="true"
+                          >
+                            <circle cx="8" cy="8" r="5.75" />
+                            <path d="M10.5 5.5L8.9 8.9L5.5 10.5L7.1 7.1L10.5 5.5Z" />
+                          </svg>
+                          <span className="ai-tactics-fullname">{activeAiLevel.name}</span>
+                          <span className="ai-tactics-tag">{activeAiLevel.styleTag}</span>
+                        </div>
+                        <p className="ai-tactics-desc">{activeAiLevel.tacticalHint}</p>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </aside>

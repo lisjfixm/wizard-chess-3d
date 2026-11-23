@@ -2790,10 +2790,12 @@ export function initWizardChess() {
     let capturedByBlack = 0;
 
     // Mode & Player Configuration
-    let gameMode = 'single'; // 'single' | 'multi'
+    let gameMode = 'single'; // 'single' | 'multi' | 'auto' (auto = AI vs AI spectator)
     let playerColor = 'w';   // 'w' | 'b' | 'spectator'
     let aiAutoPlay = true;
     let aiTimer = null;
+    let whiteAiId = 'amateur';
+    let blackAiId = 'amateur';
 
     // Multiplayer State
     let roomCode = null;
@@ -4624,6 +4626,12 @@ export function initWizardChess() {
       );
     }
 
+    function getSideAiProfile(color) {
+      let id = aiDifficultyId;
+      if (gameMode === 'auto') id = color === 'w' ? whiteAiId : blackAiId;
+      return getAIDifficultyProfile(id);
+    }
+
     function getAIDifficulty() {
       const profile = getAIDifficultyProfile();
       return {
@@ -4643,6 +4651,53 @@ export function initWizardChess() {
         window.dispatchEvent(new CustomEvent('wizardchess:aidifficultychange', { detail: summary }));
       } catch (err) {}
       return summary;
+    }
+
+    function sideAiSummary(color) {
+      const profile = getSideAiProfile(color);
+      return { id: profile.id, tier: profile.tier, elo: profile.elo, ...aiLevelStrings(profile.id) };
+    }
+
+    function getAutoPlayState() {
+      return {
+        mode: gameMode,
+        whiteAiId,
+        blackAiId,
+        playerColor,
+        white: sideAiSummary('w'),
+        black: sideAiSummary('b')
+      };
+    }
+
+    function dispatchAutoPlayChange() {
+      try {
+        window.dispatchEvent(new CustomEvent('wizardchess:autoplaychange', { detail: getAutoPlayState() }));
+      } catch (err) {}
+    }
+
+    function setAutoPlayMode(enabled) {
+      stopMultiplayerSync();
+      scriptedGameActive = false;
+      gameMode = enabled ? 'auto' : 'single';
+      roomCode = null;
+      if (whiteAiId === blackAiId) {
+        whiteAiId = aiDifficultyId;
+        blackAiId = aiDifficultyId;
+      }
+      resetChessBoard(true, false);
+      dispatchAutoPlayChange();
+      return getAutoPlayState();
+    }
+
+    function setSideAIDifficulty(color, id) {
+      const found = AI_DIFFICULTY_LEVELS.find((lvl) => lvl.id === id);
+      if (!found) return getAutoPlayState();
+      if (color === 'w') whiteAiId = found.id;
+      else blackAiId = found.id;
+      aiDifficultyId = found.id;
+      dispatchAutoPlayChange();
+      if (gameMode === 'auto') maybeScheduleAIMove();
+      return getAutoPlayState();
     }
 
     // Piece-Square Tables (oriented for White: row 0 = rank 8, row 7 = rank 1)
@@ -5429,7 +5484,7 @@ export function initWizardChess() {
       const legalMoves = getAllLegalMoves(color);
       if (legalMoves.length === 0) return null;
 
-      const cfg = getAIDifficultyProfile();
+      const cfg = getSideAiProfile(color);
 
       // Occasional pure intuitive blunder for Novice / Apprentice tiers
       if (cfg.blunderChance > 0 && Math.random() < cfg.blunderChance) {
@@ -5566,24 +5621,24 @@ export function initWizardChess() {
       }
       if (gameOver || isAnimatingMove || preMoveHighlightTask) return;
       if (scriptedGameActive) return;
-      if (gameMode !== 'single' || !aiAutoPlay) return;
+      if (!aiAutoPlay || gameMode === 'multi') return;
 
+      const isAuto = gameMode === 'auto';
       const aiColor = playerColor === 'w' ? 'b' : 'w';
-      if (currentTurn === aiColor) {
-        const delayMs = getAIDifficultyProfile().thinkDelayMs || 540;
-        aiTimer = setTimeout(() => {
-          aiTimer = null;
-          if (
-            !scriptedGameActive &&
-            gameMode === 'single' &&
-            currentTurn === aiColor &&
-            !isAnimatingMove &&
-            !gameOver
-          ) {
-            triggerAIMoveNow();
-          }
-        }, delayMs);
-      }
+      if (!isAuto && currentTurn !== aiColor) return;
+
+      const delayMs = getSideAiProfile(currentTurn).thinkDelayMs || 540;
+      aiTimer = setTimeout(() => {
+        aiTimer = null;
+        if (
+          !scriptedGameActive &&
+          !isAnimatingMove &&
+          !gameOver &&
+          (isAuto || currentTurn === aiColor)
+        ) {
+          triggerAIMoveNow();
+        }
+      }, delayMs);
     }
 
     // =========================================================================
@@ -6440,7 +6495,9 @@ export function initWizardChess() {
       } else {
         const turnLabel = currentTurn === 'w' ? t('status.turnWhite') : t('status.turnBlack');
         const aiColor = playerColor === 'w' ? 'b' : 'w';
-        const isAiTurn = !scriptedGameActive && gameMode === 'single' && currentTurn === aiColor;
+        const isAiTurn =
+          !scriptedGameActive &&
+          (gameMode === 'auto' || (gameMode === 'single' && currentTurn === aiColor));
         if (turnText) {
           if (inCheck) {
             turnText.textContent = turnLabel + t('status.check');
@@ -6453,13 +6510,18 @@ export function initWizardChess() {
       }
 
       if (modeBadge) {
-        modeBadge.textContent = playerColor === 'w' ? t('status.modeWhite') : t('status.modeBlack');
+        modeBadge.textContent =
+          gameMode === 'auto'
+            ? t('status.modeAuto')
+            : playerColor === 'w'
+              ? t('status.modeWhite')
+              : t('status.modeBlack');
       }
       if (btnAiMove) {
         btnAiMove.style.display = 'inline-flex';
       }
       if (btnSideToggle) {
-        btnSideToggle.style.display = 'inline-flex';
+        btnSideToggle.style.display = gameMode === 'auto' ? 'none' : 'inline-flex';
         btnSideToggle.textContent = playerColor === 'w' ? t('status.sideToBlack') : t('status.sideToWhite');
       }
       if (roomPill) {
@@ -6493,6 +6555,8 @@ export function initWizardChess() {
       if (reviewingHistoryIndex !== null) return;
       if (isAnimatingMove || gameOver) return;
 
+      // Auto (AI vs AI) is spectator-only: no manual piece selection.
+      if (gameMode === 'auto') return;
       // Enforce turn ownership in Multiplayer, and in Single Player only block while AI auto-move timer is actively pending
       if (gameMode === 'multi' && currentTurn !== playerColor) return;
       if (!scriptedGameActive && gameMode === 'single' && currentTurn !== playerColor && aiTimer !== null) return;
@@ -7247,6 +7311,9 @@ export function initWizardChess() {
       },
       setAIDifficulty,
       getAIDifficulty,
+      setAutoPlayMode,
+      getAutoPlayState,
+      setSideAIDifficulty,
       getMoveHistory,
       inspectHistoryMove,
       exitHistoryReview,
@@ -7330,6 +7397,8 @@ export function initWizardChess() {
       },
       getState: () => ({
         gameMode,
+        whiteAiId,
+        blackAiId,
         scriptedGameActive,
         scriptDeviated,
         scriptMovesCount: scriptMoves.length,
