@@ -129,7 +129,7 @@ export function initWizardChess() {
         if (o.geometry) o.geometry.dispose();
         if (o.material) {
           const ms = Array.isArray(o.material) ? o.material : [o.material];
-          for (const m of ms) { if (m.map) m.map.dispose(); m.dispose(); }
+          for (const m of ms) { if (m.map && !m.map.userData?.shared) m.map.dispose(); m.dispose(); }
         }
       });
     }
@@ -157,6 +157,25 @@ export function initWizardChess() {
       const tex = new THREE.CanvasTexture(canvas);
       tex.colorSpace = THREE.SRGBColorSpace;
       return tex;
+    }
+
+    // Shared singleton sky textures: the same radial/linear gradient is reused by
+    // every sprite so quality switches do not re-bake and re-upload duplicate canvases.
+    let _nebulaTex = null;
+    let _tailTex = null;
+    function getNebulaTex() {
+      if (!_nebulaTex) {
+        _nebulaTex = createNebulaTexture();
+        _nebulaTex.userData.shared = true;
+      }
+      return _nebulaTex;
+    }
+    function getTailTex() {
+      if (!_tailTex) {
+        _tailTex = createTailTexture();
+        _tailTex.userData.shared = true;
+      }
+      return _tailTex;
     }
 
     function buildGalaxy(def, pointScale = 1) {
@@ -197,7 +216,7 @@ export function initWizardChess() {
       });
       const disk = new THREE.Points(geo, mat);
       const coreMat = new THREE.SpriteMaterial({
-        map: createNebulaTexture(),
+        map: getNebulaTex(),
         color: inner,
         transparent: true,
         opacity: 0.9,
@@ -318,7 +337,7 @@ export function initWizardChess() {
       const group = new THREE.Group();
       group.add(new THREE.Points(geo, mat));
       const coreMat = new THREE.SpriteMaterial({
-        map: createNebulaTexture(),
+        map: getNebulaTex(),
         color: color,
         transparent: true,
         opacity: 0.5,
@@ -415,7 +434,7 @@ export function initWizardChess() {
       const group = new THREE.Group();
       group.add(new THREE.Points(geo, mat));
       const coreMat = new THREE.SpriteMaterial({
-        map: createNebulaTexture(),
+        map: getNebulaTex(),
         color: 0xfff3d6,
         transparent: true,
         opacity: 0.55,
@@ -539,7 +558,7 @@ export function initWizardChess() {
       ];
       for (const g of glowDefs) {
         const gmat = new THREE.SpriteMaterial({
-          map: createNebulaTexture(),
+          map: getNebulaTex(),
           color: g.color,
           transparent: true,
           opacity: g.opacity,
@@ -859,8 +878,8 @@ export function initWizardChess() {
     function createStarfieldGroup(preset) {
       const group = new THREE.Group();
       const p = preset || QUALITY_PRESETS[DEFAULT_QUALITY];
-      const nebulaTex = createNebulaTexture();
-      const tailTex = createTailTexture();
+      const nebulaTex = getNebulaTex();
+      const tailTex = getTailTex();
 
       // ---- Background star shell ----
       const positions = new Float32Array(p.stars * 3);
