@@ -75,6 +75,14 @@ test('AI tier/elo metadata matches between engine and React shell', () => {
   assert.deepEqual(engineMeta.map((m) => m.elo), appMeta.map((m) => m.elo), 'AI ELO values diverge');
 });
 
+test('Cathedral load failure degrades gracefully instead of hanging the loader', () => {
+  const engine = fs.readFileSync(path.join(ROOT, 'src/wizardChessEngine.js'), 'utf-8');
+  const errHandler = engine.match(/\(err\) => \{\s*cathedralError = ([\s\S]*?)\n\s*\}\s*\);/);
+  assert.ok(errHandler, 'cathedral error handler not found');
+  assert.ok(errHandler[1].includes('resolve();'), 'cathedral load failure must resolve to keep booting');
+  assert.ok(!errHandler[1].includes('reject('), 'cathedral load failure must not reject');
+});
+
 test('Ultra preset carries the enriched cosmic layers', () => {
   const engine = fs.readFileSync(path.join(ROOT, 'src/wizardChessEngine.js'), 'utf-8');
   const ultraMatch = engine.match(/'ultra':\s*\{([^}]+)\}/);
