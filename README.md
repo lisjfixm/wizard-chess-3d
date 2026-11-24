@@ -65,8 +65,14 @@ npm run preview
 
 引擎掛載於 `window.wizardChess`，常用介面：
 
-- 對局：`setAutoPlayMode`、`getAutoPlayState`、`setSideAIDifficulty`、`setAutoSpeed`、`setAIDifficulty`、`getAIDifficulty`
+- 對局：`setAutoPlayMode`、`getAutoPlayState`、`setSideAIDifficulty`、`setAutoSpeed`、`setAutoPaused`、`setAIDifficulty`、`getAIDifficulty`
 - 外觀：`setSceneMode`、`getSceneMode`、`setQualityLevel`、`getQualityLevel`、`setEffectsEnabled`、`getEffectsEnabled`
 - 歷史：`getMoveHistory`、`inspectHistoryMove`、`exitHistoryReview`、`analyzeHistoryMove`
 
 狀態變更會廣播 `wizardchess:autoplaychange`、`effectschange`、`aidifficultychange`、`historychange`、`scenemodechange`、`qualitychange`、`languagechange` 事件。
+
+## 觀戰模式細節
+
+- 觀戰暫停（`setAutoPaused` 或按鈕／快捷鍵 `P`）僅作用於當前連線階段，不寫入 localStorage；重新載入後自動恢復觀戰。
+- 分頁隱藏時 AI 停止排程（節省電量），回到前景自動續走；已在進行中的走棋動畫會正常完成。
+- 快捷鍵：`H` 隱藏介面、`P` 觀戰暫停／繼續（僅觀戰模式）、`WASD + R/F` 自由飛行視角。
