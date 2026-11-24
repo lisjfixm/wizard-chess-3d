@@ -460,7 +460,7 @@ export default function App() {
           </div>
           <div className="status-pill" id="status-pill">
             <span className="turn-dot" id="turn-dot"></span>
-            <span id="turn-text">{t('status.turnWhite')}</span>
+            <span id="turn-text" role="status" aria-live="polite">{t('status.turnWhite')}</span>
             <span className="mode-badge" id="mode-badge">{t('status.modeWhite')}</span>
           </div>
           <select

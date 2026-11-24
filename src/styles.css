@@ -1611,3 +1611,12 @@ body.cinematic-ui-hidden #hud-bottom {
     scroll-behavior: auto !important;
   }
 }
+
+/* Visible keyboard focus for HUD controls */
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--gold-bright);
+  outline-offset: 2px;
+}
