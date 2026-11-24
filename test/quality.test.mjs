@@ -59,6 +59,22 @@ test('Core public API surface is registered on window.wizardChess', () => {
   }
 });
 
+test('AI tier/elo metadata matches between engine and React shell', () => {
+  const engine = fs.readFileSync(path.join(ROOT, 'src/wizardChessEngine.js'), 'utf-8');
+  const appTsx = fs.readFileSync(path.join(ROOT, 'src/App.tsx'), 'utf-8');
+
+  const engineMeta = [...engine.matchAll(/id: '(\w+)',\s*tier:\s*(\d+),\s*elo:\s*(\d+)/g)]
+    .map((m) => ({ id: m[1], tier: Number(m[2]), elo: Number(m[3]) }));
+  const appMeta = [...appTsx.matchAll(/id: '(\w+)',\s*tier:\s*(\d+),\s*elo:\s*(\d+)/g)]
+    .map((m) => ({ id: m[1], tier: Number(m[2]), elo: Number(m[3]) }));
+
+  assert.equal(engineMeta.length, 11, 'engine should declare 11 AI tiers');
+  assert.equal(appMeta.length, 11, 'React shell should declare 11 AI tiers');
+  assert.deepEqual(engineMeta.map((m) => m.id), appMeta.map((m) => m.id), 'AI tier ids diverge');
+  assert.deepEqual(engineMeta.map((m) => m.tier), appMeta.map((m) => m.tier), 'AI tier numbers diverge');
+  assert.deepEqual(engineMeta.map((m) => m.elo), appMeta.map((m) => m.elo), 'AI ELO values diverge');
+});
+
 test('Ultra preset carries the enriched cosmic layers', () => {
   const engine = fs.readFileSync(path.join(ROOT, 'src/wizardChessEngine.js'), 'utf-8');
   const ultraMatch = engine.match(/'ultra':\s*\{([^}]+)\}/);
