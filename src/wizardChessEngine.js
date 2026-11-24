@@ -85,11 +85,19 @@ export function initWizardChess() {
     scene.background = new THREE.Color(0x0a0e27);
     scene.fog = new THREE.FogExp2(0x0a0e27, 0.015);
 
+    // Storage access guarded against private-mode / disabled-storage exceptions
+    function readStorage(key) {
+      try { return localStorage.getItem(key); } catch (err) { return null; }
+    }
+    function writeStorage(key, value) {
+      try { localStorage.setItem(key, value); } catch (err) {}
+    }
+
     // ---- Dual scene: castle (cathedral GLB) vs starfield (procedural) ----
     let cathedralRoot = null;
     let cathedralLoaded = false;
     let cathedralError = null;
-    let sceneMode = localStorage.getItem('wizardchess.scene') === 'starfield' ? 'starfield' : 'castle';
+    let sceneMode = readStorage('wizardchess.scene') === 'starfield' ? 'starfield' : 'castle';
     let qualityLevel = 'medium';
 
     function createNebulaTexture() {
@@ -133,7 +141,7 @@ export function initWizardChess() {
         }
       });
     }
-    qualityLevel = resolveQualityLevel(localStorage.getItem('wizardchess.quality'));
+    qualityLevel = resolveQualityLevel(readStorage('wizardchess.quality'));
 
     function randGaussian() {
       let u = 0;
@@ -1348,7 +1356,7 @@ export function initWizardChess() {
 
     function setSceneMode(mode) {
       sceneMode = mode === 'starfield' ? 'starfield' : 'castle';
-      try { localStorage.setItem('wizardchess.scene', sceneMode); } catch (err) {}
+      writeStorage('wizardchess.scene', sceneMode);
       if (cathedralRoot) cathedralRoot.visible = sceneMode === 'castle';
       starfieldGroup.visible = sceneMode === 'starfield';
       scene.fog = new THREE.FogExp2(0x0a0e27, sceneMode === 'starfield' ? 0.008 : 0.015);
@@ -1377,7 +1385,7 @@ export function initWizardChess() {
       const next = resolveQualityLevel(level);
       qualityLevel = next;
       const preset = QUALITY_PRESETS[next];
-      try { localStorage.setItem('wizardchess.quality', next); } catch (err) {}
+      writeStorage('wizardchess.quality', next);
 
       applyQualityRenderSettings(preset);
 
@@ -2793,19 +2801,19 @@ export function initWizardChess() {
     let playerColor = 'w';   // 'w' | 'b' | 'spectator'
     let aiAutoPlay = true;
     let aiTimer = null;
-    let whiteAiId = localStorage.getItem('wizardchess.autoWhite') || 'amateur';
-    let blackAiId = localStorage.getItem('wizardchess.autoBlack') || 'amateur';
-    const startAutoPlay = localStorage.getItem('wizardchess.autoplay') === 'auto';
+    let whiteAiId = readStorage('wizardchess.autoWhite') || 'amateur';
+    let blackAiId = readStorage('wizardchess.autoBlack') || 'amateur';
+    const startAutoPlay = readStorage('wizardchess.autoplay') === 'auto';
     // Restore mode synchronously so the React HUD reads the persisted auto state on mount
     let gameMode = startAutoPlay ? 'auto' : 'single'; // 'single' | 'multi' | 'auto'
     const AUTO_SPEEDS = ['slow', 'normal', 'fast'];
     const AUTO_SPEED_MULTIPLIER = { slow: 1.6, normal: 1, fast: 0.45 };
-    const savedSpeed = localStorage.getItem('wizardchess.autoSpeed');
+    const savedSpeed = readStorage('wizardchess.autoSpeed');
     let autoSpeed = AUTO_SPEEDS.includes(savedSpeed) ? savedSpeed : 'normal';
 
     // Multiplayer State
     let roomCode = null;
-    let playerToken = localStorage.getItem('wizard_chess_token') || '';
+    let playerToken = readStorage('wizard_chess_token') || '';
     let roomEventSource = null;
     let roomPollTimer = null;
     let appliedMoveSeq = 0;
@@ -4691,7 +4699,7 @@ export function initWizardChess() {
         whiteAiId = aiDifficultyId;
         blackAiId = aiDifficultyId;
       }
-      try { localStorage.setItem('wizardchess.autoplay', gameMode); } catch (err) {}
+      writeStorage('wizardchess.autoplay', gameMode);
       resetChessBoard(true, false);
       dispatchAutoPlayChange();
       return getAutoPlayState();
@@ -4702,10 +4710,10 @@ export function initWizardChess() {
       if (!found) return getAutoPlayState();
       if (color === 'w') {
         whiteAiId = found.id;
-        try { localStorage.setItem('wizardchess.autoWhite', found.id); } catch (err) {}
+        writeStorage('wizardchess.autoWhite', found.id);
       } else {
         blackAiId = found.id;
-        try { localStorage.setItem('wizardchess.autoBlack', found.id); } catch (err) {}
+        writeStorage('wizardchess.autoBlack', found.id);
       }
       // Note: per-side auto levels must not overwrite the single-player AI difficulty.
       dispatchAutoPlayChange();
@@ -4716,7 +4724,7 @@ export function initWizardChess() {
     function setAutoSpeed(speed) {
       if (!AUTO_SPEEDS.includes(speed)) return getAutoPlayState();
       autoSpeed = speed;
-      try { localStorage.setItem('wizardchess.autoSpeed', speed); } catch (err) {}
+      writeStorage('wizardchess.autoSpeed', speed);
       dispatchAutoPlayChange();
       if (gameMode === 'auto') maybeScheduleAIMove();
       return getAutoPlayState();
