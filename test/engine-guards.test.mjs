@@ -48,3 +48,8 @@ test('Draco decoder is wired and shipped for the compressed cathedral', () => {
   assert.equal(raw[1], 0x8b);
   assert.ok(b64.length < 7_000_000, 'cathedral payload should stay under 7MB base64 after Draco');
 });
+
+test('index.html preloads the cathedral payload alongside the JS bundle', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf-8');
+  assert.ok(html.includes('rel="preload" href="./assets/glb/option8_cathedral.glb.gz.b64" as="fetch" crossorigin="anonymous"'), 'cathedral preload link missing or altered');
+});
