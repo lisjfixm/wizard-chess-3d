@@ -524,6 +524,7 @@ export default function App() {
             className={`hud-btn ${autoPlay === 'auto' ? 'active' : ''}`}
             id="btn-mode-toggle"
             title={autoPlay === 'auto' ? t('actions.modeSingle') : t('actions.modeAuto')}
+            aria-pressed={autoPlay === 'auto'}
             onClick={() => {
               handleToggleAutoPlay();
               setMobileSheetOpen(false);

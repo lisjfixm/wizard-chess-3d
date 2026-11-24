@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
+import { translate } from '../src/i18n.js';
 
 const ROOT = process.cwd();
 
@@ -51,6 +52,19 @@ test('Effects toggle preference persists across reloads', () => {
   const setter = engine.match(/function setEffectsEnabled\(enabled\) \{([\s\S]*?)\n    \}/);
   assert.ok(setter, 'setEffectsEnabled not found');
   assert.ok(setter[1].includes("writeStorage('wizardchess.effects'"), 'effects toggle does not persist choice');
+});
+
+test('i18n translate falls back to key and substitutes placeholders', () => {
+  // Missing key must not render undefined; returns the key itself.
+  assert.equal(translate('en', 'definitely.missing.key'), 'definitely.missing.key');
+  // Existing key resolves in every supported language.
+  for (const lang of ['zh-CN', 'zh-TW', 'en', 'ja']) {
+    const text = translate(lang, 'status.modeAuto');
+    assert.ok(typeof text === 'string' && text.length > 0, `missing label for modeAuto in ${lang}`);
+  }
+  // Placeholder substitution works when vars are provided.
+  const withVar = translate('en', 'ai.elo', { elo: 1450 });
+  assert.ok(String(withVar).includes('1450'), 'elo placeholder not substituted');
 });
 
 test('All 7 compressed 3D assets (.glb.gz.b64) decode and gunzip to valid glTF 2.0 binary models', () => {

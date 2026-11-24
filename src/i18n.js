@@ -952,7 +952,8 @@ function lookup(lang, key) {
     return dict[lang][key];
   }
   if (Object.prototype.hasOwnProperty.call(dict.en, key)) return dict.en[key];
-  return dict[DEFAULT_LANG][key];
+  if (Object.prototype.hasOwnProperty.call(dict[DEFAULT_LANG], key)) return dict[DEFAULT_LANG][key];
+  return key;
 }
 
 export function translate(lang, key, vars) {
