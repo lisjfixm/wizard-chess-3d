@@ -6543,7 +6543,7 @@ export function initWizardChess() {
               : t('status.modeBlack');
       }
       if (btnAiMove) {
-        btnAiMove.style.display = 'inline-flex';
+        btnAiMove.style.display = gameMode === 'auto' ? 'none' : 'inline-flex';
       }
       if (btnSideToggle) {
         btnSideToggle.style.display = gameMode === 'auto' ? 'none' : 'inline-flex';
@@ -7086,6 +7086,7 @@ export function initWizardChess() {
     document.getElementById('btn-script-next')?.addEventListener('click', () => stepScriptForward());
 
     document.getElementById('btn-ai-move')?.addEventListener('click', () => {
+      if (gameMode === 'auto') return;
       triggerAIMoveNow();
     });
 

@@ -43,6 +43,12 @@ test('Engine exposes AI-vs-Auto spectator mode API and state', () => {
 
   // Spectator-only: manual piece selection blocked in auto mode
   assert.ok(engine.includes("if (gameMode === 'auto') return;"), 'auto mode click guard missing');
+
+  // Manual "AI move" button is hidden and guarded in spectator mode
+  assert.ok(engine.includes("gameMode === 'auto' ? 'none'"), 'AI-move button not hidden in auto mode');
+  const aiMoveListener = engine.match(/getElementById\('btn-ai-move'\)\?\.addEventListener\('click', \(\) => \{([\s\S]*?)\}\)/);
+  assert.ok(aiMoveListener, 'btn-ai-move listener not found');
+  assert.ok(aiMoveListener[1].includes("gameMode === 'auto'"), 'btn-ai-move click not guarded in auto mode');
 });
 
 test('React shell wires mode toggle and per-side AI selectors', () => {
