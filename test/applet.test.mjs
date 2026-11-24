@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { translate, dictionaryKeys } from '../src/i18n.js';
+import { translate, dictionaryKeys, detectInitialLanguage, isSupportedLang, DEFAULT_LANG } from '../src/i18n.js';
 
 const ROOT = process.cwd();
 
@@ -82,6 +82,15 @@ test('i18n dictionary keys are symmetric across all four languages and every ent
       assert.ok(typeof text === 'string' && text.trim().length > 0, `empty entry "${key}" in ${lang}`);
     }
   }
+});
+
+test('i18n degrades gracefully without window/navigator and rejects unknown languages', () => {
+  // In Node there is no window/navigator: detection must fall back to the default language.
+  assert.equal(detectInitialLanguage(), DEFAULT_LANG);
+  assert.ok(isSupportedLang('zh-TW') && isSupportedLang('en'));
+  assert.ok(!isSupportedLang('fr') && !isSupportedLang('') && !isSupportedLang(null));
+  // Unsupported language falls back to English copy, never undefined.
+  assert.equal(translate('fr', 'actions.newGame'), translate('en', 'actions.newGame'));
 });
 
 test('All 7 compressed 3D assets (.glb.gz.b64) decode and gunzip to valid glTF 2.0 binary models', () => {
