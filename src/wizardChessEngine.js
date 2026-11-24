@@ -6699,7 +6699,7 @@ export function initWizardChess() {
 
     function getStaticRoom(code) {
       try {
-        const raw = localStorage.getItem(`wizard_chess_room_${code}`);
+        const raw = readStorage(`wizard_chess_room_${code}`);
         return raw ? JSON.parse(raw) : null;
       } catch (e) {
         return null;
@@ -6708,7 +6708,7 @@ export function initWizardChess() {
 
     function saveAndBroadcastStaticRoom(room) {
       try {
-        localStorage.setItem(`wizard_chess_room_${room.code}`, JSON.stringify(room));
+        writeStorage(`wizard_chess_room_${room.code}`, JSON.stringify(room));
       } catch (e) {}
       try {
         if (staticBroadcastChannel) {
@@ -6721,7 +6721,7 @@ export function initWizardChess() {
       if (!playerToken) {
         playerToken = 'tok_' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
         try {
-          localStorage.setItem('wizard_chess_token', playerToken);
+          writeStorage('wizard_chess_token', playerToken);
         } catch (e) {}
       }
       return playerToken;
@@ -6905,7 +6905,7 @@ export function initWizardChess() {
 
       playerToken = data.playerToken;
       try {
-        localStorage.setItem('wizard_chess_token', playerToken);
+        writeStorage('wizard_chess_token', playerToken);
       } catch (e) {}
       scriptedGameActive = false;
       gameMode = 'multi';
@@ -6973,7 +6973,7 @@ export function initWizardChess() {
 
       playerToken = data.playerToken;
       try {
-        localStorage.setItem('wizard_chess_token', playerToken);
+        writeStorage('wizard_chess_token', playerToken);
       } catch (e) {}
       scriptedGameActive = false;
       gameMode = 'multi';
