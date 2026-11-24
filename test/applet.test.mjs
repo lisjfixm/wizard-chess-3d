@@ -44,6 +44,15 @@ test('Simplified Single-Player HUD in src/App.tsx excludes speed sliders, notati
   }
 });
 
+test('Effects toggle preference persists across reloads', () => {
+  const engine = fs.readFileSync(path.join(ROOT, 'src/wizardChessEngine.js'), 'utf-8');
+  assert.ok(engine.includes("wizardchess.effects"), 'effects storage key missing');
+  assert.ok(engine.includes("readStorage('wizardchess.effects')"), 'effects not restored on boot');
+  const setter = engine.match(/function setEffectsEnabled\(enabled\) \{([\s\S]*?)\n    \}/);
+  assert.ok(setter, 'setEffectsEnabled not found');
+  assert.ok(setter[1].includes("writeStorage('wizardchess.effects'"), 'effects toggle does not persist choice');
+});
+
 test('All 7 compressed 3D assets (.glb.gz.b64) decode and gunzip to valid glTF 2.0 binary models', () => {
   const expectedModels = [
     'option8_cathedral',

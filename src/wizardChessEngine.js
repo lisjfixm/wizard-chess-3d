@@ -3007,7 +3007,7 @@ export function initWizardChess() {
     let moveHistory = [];
     let preMoveHighlightTask = null;
     let activeDuelSavedCam = null;
-    let effectsEnabled = true;
+    let effectsEnabled = readStorage('wizardchess.effects') !== 'off';
     let reviewingHistoryIndex = null;
     let liveReviewBackupSnapshot = null;
     let focusedHistoryIndex = null;
@@ -3117,6 +3117,7 @@ export function initWizardChess() {
 
     function setEffectsEnabled(enabled) {
       effectsEnabled = Boolean(enabled);
+      writeStorage('wizardchess.effects', effectsEnabled ? 'on' : 'off');
       if (!effectsEnabled) {
         for (const d of shatterDebris) {
           if (d.mesh) scene.remove(d.mesh);
