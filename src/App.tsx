@@ -688,7 +688,9 @@ export default function App() {
                   </svg>
                   <span className="hud-dock-title">{t('sections.ai')}</span>
                   <span className="ai-tier-badge">
-                    Lv.{activeAiLevel.tier} {activeAiLevel.shortName}
+                    {autoPlay === 'auto'
+                      ? `Lv.${sideAiLevel(whiteAiId).tier} vs Lv.${sideAiLevel(blackAiId).tier}`
+                      : `Lv.${activeAiLevel.tier} ${activeAiLevel.shortName}`}
                   </span>
                 </div>
                 <div className="hud-dock-header-actions">

@@ -2794,8 +2794,9 @@ export function initWizardChess() {
     let playerColor = 'w';   // 'w' | 'b' | 'spectator'
     let aiAutoPlay = true;
     let aiTimer = null;
-    let whiteAiId = 'amateur';
-    let blackAiId = 'amateur';
+    let whiteAiId = localStorage.getItem('wizardchess.autoWhite') || 'amateur';
+    let blackAiId = localStorage.getItem('wizardchess.autoBlack') || 'amateur';
+    const startAutoPlay = localStorage.getItem('wizardchess.autoplay') === 'auto';
 
     // Multiplayer State
     let roomCode = null;
@@ -4684,6 +4685,7 @@ export function initWizardChess() {
         whiteAiId = aiDifficultyId;
         blackAiId = aiDifficultyId;
       }
+      try { localStorage.setItem('wizardchess.autoplay', gameMode); } catch (err) {}
       resetChessBoard(true, false);
       dispatchAutoPlayChange();
       return getAutoPlayState();
@@ -4692,9 +4694,14 @@ export function initWizardChess() {
     function setSideAIDifficulty(color, id) {
       const found = AI_DIFFICULTY_LEVELS.find((lvl) => lvl.id === id);
       if (!found) return getAutoPlayState();
-      if (color === 'w') whiteAiId = found.id;
-      else blackAiId = found.id;
-      aiDifficultyId = found.id;
+      if (color === 'w') {
+        whiteAiId = found.id;
+        try { localStorage.setItem('wizardchess.autoWhite', found.id); } catch (err) {}
+      } else {
+        blackAiId = found.id;
+        try { localStorage.setItem('wizardchess.autoBlack', found.id); } catch (err) {}
+      }
+      // Note: per-side auto levels must not overwrite the single-player AI difficulty.
       dispatchAutoPlayChange();
       if (gameMode === 'auto') maybeScheduleAIMove();
       return getAutoPlayState();
@@ -7874,6 +7881,10 @@ export function initWizardChess() {
       if (urlSide === 'b' || urlSide === 'black') {
         playerColor = 'b';
       }
+      const validAiIds = new Set(AI_DIFFICULTY_LEVELS.map((l) => l.id));
+      if (!validAiIds.has(whiteAiId)) whiteAiId = 'amateur';
+      if (!validAiIds.has(blackAiId)) blackAiId = 'amateur';
+      if (startAutoPlay) gameMode = 'auto';
       resetChessBoard(true, true);
       if (navigator.webdriver) {
         window.wizardChess.stepBy(0.9, 15);

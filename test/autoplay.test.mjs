@@ -58,3 +58,20 @@ test('Every AI-vs-Auto label exists in all four languages', () => {
     assert.equal(count, 4, `i18n key ${key} appears ${count} times, expected 4`);
   }
 });
+
+test('Auto preference and per-side levels persist across reloads', () => {
+  const engine = fs.readFileSync(path.join(ROOT, 'src/wizardChessEngine.js'), 'utf-8');
+  for (const key of ['wizardchess.autoplay', 'wizardchess.autoWhite', 'wizardchess.autoBlack']) {
+    assert.ok(engine.includes(key), `persisted storage key ${key} missing`);
+  }
+  // Startup restores the saved auto mode
+  assert.ok(engine.includes('startAutoPlay'), 'startup auto restore flag missing');
+});
+
+test('Per-side difficulty does not clobber the single-player AI level', () => {
+  const engine = fs.readFileSync(path.join(ROOT, 'src/wizardChessEngine.js'), 'utf-8');
+  const fnMatch = engine.match(/function setSideAIDifficulty\(color, id\) \{([\s\S]*?)\n    \}/);
+  assert.ok(fnMatch, 'setSideAIDifficulty not found');
+  const body = fnMatch[1];
+  assert.ok(!/aiDifficultyId\s*=/.test(body), 'side difficulty must not assign aiDifficultyId');
+});
