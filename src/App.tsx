@@ -93,9 +93,10 @@ interface WizardChessApi {
   setAIDifficulty?: (id: string) => AIDifficultyLevel;
   getAIDifficulty?: () => AIDifficultyLevel;
   setAutoPlayMode?: (enabled: boolean) => { mode: string; whiteAiId: string; blackAiId: string };
-  getAutoPlayState?: () => { mode: string; whiteAiId: string; blackAiId: string; autoSpeed: string };
+  getAutoPlayState?: () => { mode: string; whiteAiId: string; blackAiId: string; autoSpeed: string; autoPaused?: boolean };
   setSideAIDifficulty?: (color: 'w' | 'b', id: string) => { whiteAiId: string; blackAiId: string };
   setAutoSpeed?: (speed: string) => { autoSpeed: string };
+  setAutoPaused?: (paused: boolean) => { autoPaused?: boolean };
   getMoveHistory?: () => MoveHistoryState;
   inspectHistoryMove?: (index: number) => boolean;
   exitHistoryReview?: (restoreCamera?: boolean) => boolean;
@@ -127,6 +128,7 @@ export default function App() {
   const [whiteAiId, setWhiteAiId] = useState<string>('amateur');
   const [blackAiId, setBlackAiId] = useState<string>('amateur');
   const [autoSpeed, setAutoSpeed] = useState<string>('normal');
+  const [autoPaused, setAutoPausedState] = useState<boolean>(false);
   const [aiSettingsCollapsed, setAiSettingsCollapsed] = useState(false);
   const [historyCollapsed, setHistoryCollapsed] = useState(false);
   const [insightCollapsed, setInsightCollapsed] = useState(false);
@@ -175,6 +177,7 @@ export default function App() {
         whiteAiId?: string;
         blackAiId?: string;
         autoSpeed?: string;
+        autoPaused?: boolean;
       }>;
       const detail = customEvent.detail;
       if (!detail) return;
@@ -184,6 +187,7 @@ export default function App() {
       if (detail.whiteAiId) setWhiteAiId(detail.whiteAiId);
       if (detail.blackAiId) setBlackAiId(detail.blackAiId);
       if (detail.autoSpeed) setAutoSpeed(detail.autoSpeed);
+      if (typeof detail.autoPaused === 'boolean') setAutoPausedState(detail.autoPaused);
     };
     const handleSceneModeChange = (e: Event) => {
       const customEvent = e as CustomEvent<{ mode: 'castle' | 'starfield' }>;
@@ -233,6 +237,7 @@ export default function App() {
       if (auto?.whiteAiId) setWhiteAiId(auto.whiteAiId);
       if (auto?.blackAiId) setBlackAiId(auto.blackAiId);
       if (auto?.autoSpeed) setAutoSpeed(auto.autoSpeed);
+      if (typeof auto?.autoPaused === 'boolean') setAutoPausedState(auto.autoPaused);
     }
 
     return () => {
@@ -349,6 +354,12 @@ export default function App() {
     if (!['slow', 'normal', 'fast'].includes(speed)) return;
     setAutoSpeed(speed);
     getWizardChessApi()?.setAutoSpeed?.(speed);
+  };
+
+  const handleToggleAutoPause = () => {
+    const next = !autoPaused;
+    setAutoPausedState(next);
+    getWizardChessApi()?.setAutoPaused?.(next);
   };
 
   const handleChangeLang = (next: string) => {
@@ -789,6 +800,15 @@ export default function App() {
                           <option value="fast">{t('ai.speedFast')}</option>
                         </select>
                       </label>
+                      <button
+                        type="button"
+                        className={`hud-btn auto-pause-btn ${autoPaused ? 'active' : ''}`}
+                        id="btn-auto-pause"
+                        aria-pressed={autoPaused}
+                        onClick={handleToggleAutoPause}
+                      >
+                        {autoPaused ? t('ai.resume') : t('ai.pause')}
+                      </button>
                     </>
                   ) : (
                     <>

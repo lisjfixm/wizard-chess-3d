@@ -2810,6 +2810,8 @@ export function initWizardChess() {
     const AUTO_SPEED_MULTIPLIER = { slow: 1.6, normal: 1, fast: 0.45 };
     const savedSpeed = readStorage('wizardchess.autoSpeed');
     let autoSpeed = AUTO_SPEEDS.includes(savedSpeed) ? savedSpeed : 'normal';
+    // Session-only spectator pause; intentionally not persisted so a reload resumes spectating
+    let autoPaused = false;
 
     // Multiplayer State
     let roomCode = null;
@@ -4679,6 +4681,7 @@ export function initWizardChess() {
         whiteAiId,
         blackAiId,
         autoSpeed,
+        autoPaused,
         playerColor,
         white: sideAiSummary('w'),
         black: sideAiSummary('b')
@@ -4695,6 +4698,7 @@ export function initWizardChess() {
       stopMultiplayerSync();
       scriptedGameActive = false;
       gameMode = enabled ? 'auto' : 'single';
+      autoPaused = false;
       roomCode = null;
       if (whiteAiId === blackAiId) {
         whiteAiId = aiDifficultyId;
@@ -4728,6 +4732,22 @@ export function initWizardChess() {
       writeStorage('wizardchess.autoSpeed', speed);
       dispatchAutoPlayChange();
       if (gameMode === 'auto') maybeScheduleAIMove();
+      return getAutoPlayState();
+    }
+
+    function setAutoPaused(paused) {
+      if (gameMode !== 'auto') return getAutoPlayState();
+      autoPaused = Boolean(paused);
+      if (autoPaused) {
+        if (aiTimer) {
+          clearTimeout(aiTimer);
+          aiTimer = null;
+        }
+      } else {
+        maybeScheduleAIMove();
+      }
+      updateTurnUI();
+      dispatchAutoPlayChange();
       return getAutoPlayState();
     }
 
@@ -5640,6 +5660,7 @@ export function initWizardChess() {
         exitHistoryReview(false);
       }
       if (isAnimatingMove || gameOver) return false;
+      if (gameMode === 'auto' && autoPaused) return false;
       const chosen = chooseSmartAIMove(currentTurn);
       if (!chosen) return false;
       return executeChessMove(chosen.fromR, chosen.fromC, chosen.toR, chosen.toC);
@@ -5653,6 +5674,7 @@ export function initWizardChess() {
       if (gameOver || isAnimatingMove || preMoveHighlightTask) return;
       if (scriptedGameActive) return;
       if (!aiAutoPlay || gameMode === 'multi') return;
+      if (gameMode === 'auto' && autoPaused) return;
 
       const isAuto = gameMode === 'auto';
       const aiColor = playerColor === 'w' ? 'b' : 'w';
@@ -6535,6 +6557,8 @@ export function initWizardChess() {
         if (turnText) {
           if (inCheck) {
             turnText.textContent = turnLabel + t('status.check');
+          } else if (gameMode === 'auto' && autoPaused) {
+            turnText.textContent = turnLabel + ' — ' + t('status.autoPaused');
           } else if (isAiTurn) {
             turnText.textContent = turnLabel + t('status.aiThinking');
           } else {
@@ -7350,6 +7374,7 @@ export function initWizardChess() {
       getAutoPlayState,
       setSideAIDifficulty,
       setAutoSpeed,
+      setAutoPaused,
       getMoveHistory,
       inspectHistoryMove,
       exitHistoryReview,
@@ -7436,6 +7461,7 @@ export function initWizardChess() {
         whiteAiId,
         blackAiId,
         autoSpeed,
+        autoPaused,
         scriptedGameActive,
         scriptDeviated,
         scriptMovesCount: scriptMoves.length,

@@ -413,6 +413,12 @@ html, body, #root {
   font-variant-numeric: tabular-nums;
 }
 
+.auto-pause-btn {
+  width: 100%;
+  margin-top: 8px;
+  font-size: 0.75rem;
+}
+
 .ai-level-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

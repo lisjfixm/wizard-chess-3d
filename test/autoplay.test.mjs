@@ -15,7 +15,10 @@ const AUTO_I18N_KEYS = [
   'ai.speed',
   'ai.speedSlow',
   'ai.speedNormal',
-  'ai.speedFast'
+  'ai.speedFast',
+  'ai.pause',
+  'ai.resume',
+  'status.autoPaused'
 ];
 
 test('Engine exposes AI-vs-Auto spectator mode API and state', () => {
@@ -79,6 +82,24 @@ test('Auto preference and per-side levels persist across reloads', () => {
   }
   // Startup restores the saved auto mode
   assert.ok(engine.includes('startAutoPlay'), 'startup auto restore flag missing');
+});
+
+test('Spectator pause guards scheduling and manual moves, and is session-only', () => {
+  const engine = fs.readFileSync(path.join(ROOT, 'src/wizardChessEngine.js'), 'utf-8');
+  const appTsx = fs.readFileSync(path.join(ROOT, 'src/App.tsx'), 'utf-8');
+
+  assert.ok(engine.includes('function setAutoPaused(paused)'), 'setAutoPaused missing');
+  assert.ok(engine.includes("if (gameMode === 'auto' && autoPaused) return;"), 'scheduler pause guard missing');
+  assert.ok(engine.includes("if (gameMode === 'auto' && autoPaused) return false;"), 'manual move pause guard missing');
+  assert.ok(/setAutoPlayMode\(enabled\)[\s\S]*?autoPaused = false;/.test(engine), 'mode switch must reset pause');
+  assert.ok(!engine.includes('wizardchess.autoPaused'), 'pause must stay session-only, not persisted');
+
+  const stateMatch = engine.match(/function getAutoPlayState\(\) \{([\s\S]*?)\n    \}/);
+  assert.ok(stateMatch && stateMatch[1].includes('autoPaused'), 'getAutoPlayState missing autoPaused');
+
+  assert.ok(appTsx.includes('id="btn-auto-pause"'), 'pause button missing in React shell');
+  assert.ok(appTsx.includes('handleToggleAutoPause'), 'pause handler missing');
+  assert.ok(appTsx.includes('setAutoPaused'), 'setAutoPaused API call missing in React shell');
 });
 
 test('Per-side difficulty does not clobber the single-player AI level', () => {
