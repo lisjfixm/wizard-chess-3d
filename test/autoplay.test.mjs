@@ -101,6 +101,8 @@ test('Spectator pause guards scheduling and manual moves, and is session-only', 
   assert.ok(appTsx.includes('handleToggleAutoPause'), 'pause handler missing');
   assert.ok(appTsx.includes('setAutoPaused'), 'setAutoPaused API call missing in React shell');
   assert.ok(/KeyP' && gameMode === 'auto'/.test(engine), 'P shortcut must be guarded to auto mode');
+  assert.ok(/if \(document\.hidden\) return;/.test(engine), 'hidden-tab AI scheduling guard missing');
+  assert.ok(engine.includes("document.addEventListener('visibilitychange'"), 'visibilitychange resume listener missing');
 });
 
 test('Per-side difficulty does not clobber the single-player AI level', () => {

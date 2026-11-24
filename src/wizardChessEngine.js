@@ -5675,6 +5675,8 @@ export function initWizardChess() {
       if (scriptedGameActive) return;
       if (!aiAutoPlay || gameMode === 'multi') return;
       if (gameMode === 'auto' && autoPaused) return;
+      // Save battery: do not queue AI moves while the tab is hidden; resumed on visibilitychange
+      if (document.hidden) return;
 
       const isAuto = gameMode === 'auto';
       const aiColor = playerColor === 'w' ? 'b' : 'w';
@@ -5686,6 +5688,7 @@ export function initWizardChess() {
         : baseDelay;
       aiTimer = setTimeout(() => {
         aiTimer = null;
+        if (document.hidden) return;
         if (
           !scriptedGameActive &&
           !isAnimatingMove &&
@@ -5696,6 +5699,10 @@ export function initWizardChess() {
         }
       }, delayMs);
     }
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) maybeScheduleAIMove();
+    });
 
     // =========================================================================
     // Feature 3 (3a, 3b, 3c): Chess Notation Parser & Step-Through Choreography
