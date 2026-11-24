@@ -11,14 +11,18 @@ const AUTO_I18N_KEYS = [
   'actions.modeSingle',
   'ai.autoSub',
   'ai.sideWhiteAi',
-  'ai.sideBlackAi'
+  'ai.sideBlackAi',
+  'ai.speed',
+  'ai.speedSlow',
+  'ai.speedNormal',
+  'ai.speedFast'
 ];
 
 test('Engine exposes AI-vs-Auto spectator mode API and state', () => {
   const engine = fs.readFileSync(path.join(ROOT, 'src/wizardChessEngine.js'), 'utf-8');
 
   // Public API surface
-  for (const api of ['setAutoPlayMode', 'getAutoPlayState', 'setSideAIDifficulty']) {
+  for (const api of ['setAutoPlayMode', 'getAutoPlayState', 'setSideAIDifficulty', 'setAutoSpeed']) {
     assert.ok(engine.includes(api), `wizardChess API ${api} missing`);
   }
 
@@ -35,6 +39,7 @@ test('Engine exposes AI-vs-Auto spectator mode API and state', () => {
   assert.ok(stateMatch, 'getState not found');
   assert.ok(stateMatch[1].includes('whiteAiId'), 'getState missing whiteAiId');
   assert.ok(stateMatch[1].includes('blackAiId'), 'getState missing blackAiId');
+  assert.ok(stateMatch[1].includes('autoSpeed'), 'getState missing autoSpeed');
 
   // Spectator-only: manual piece selection blocked in auto mode
   assert.ok(engine.includes("if (gameMode === 'auto') return;"), 'auto mode click guard missing');
@@ -46,8 +51,10 @@ test('React shell wires mode toggle and per-side AI selectors', () => {
   assert.ok(appTsx.includes('id="btn-mode-toggle"'), 'mode toggle button missing');
   assert.ok(appTsx.includes('setAutoPlayMode'), 'setAutoPlayMode handler missing');
   assert.ok(appTsx.includes('setSideAIDifficulty'), 'setSideAIDifficulty handler missing');
+  assert.ok(appTsx.includes('setAutoSpeed'), 'setAutoSpeed handler missing');
   assert.ok(appTsx.includes('whiteAiId'), 'white side state missing');
   assert.ok(appTsx.includes('blackAiId'), 'black side state missing');
+  assert.ok(appTsx.includes('autoSpeed'), 'speed state missing');
   assert.ok(appTsx.includes('wizardchess:autoplaychange'), 'autoplaychange listener missing');
 });
 
@@ -61,7 +68,7 @@ test('Every AI-vs-Auto label exists in all four languages', () => {
 
 test('Auto preference and per-side levels persist across reloads', () => {
   const engine = fs.readFileSync(path.join(ROOT, 'src/wizardChessEngine.js'), 'utf-8');
-  for (const key of ['wizardchess.autoplay', 'wizardchess.autoWhite', 'wizardchess.autoBlack']) {
+  for (const key of ['wizardchess.autoplay', 'wizardchess.autoWhite', 'wizardchess.autoBlack', 'wizardchess.autoSpeed']) {
     assert.ok(engine.includes(key), `persisted storage key ${key} missing`);
   }
   // Startup restores the saved auto mode

@@ -2790,13 +2790,18 @@ export function initWizardChess() {
     let capturedByBlack = 0;
 
     // Mode & Player Configuration
-    let gameMode = 'single'; // 'single' | 'multi' | 'auto' (auto = AI vs AI spectator)
     let playerColor = 'w';   // 'w' | 'b' | 'spectator'
     let aiAutoPlay = true;
     let aiTimer = null;
     let whiteAiId = localStorage.getItem('wizardchess.autoWhite') || 'amateur';
     let blackAiId = localStorage.getItem('wizardchess.autoBlack') || 'amateur';
     const startAutoPlay = localStorage.getItem('wizardchess.autoplay') === 'auto';
+    // Restore mode synchronously so the React HUD reads the persisted auto state on mount
+    let gameMode = startAutoPlay ? 'auto' : 'single'; // 'single' | 'multi' | 'auto'
+    const AUTO_SPEEDS = ['slow', 'normal', 'fast'];
+    const AUTO_SPEED_MULTIPLIER = { slow: 1.6, normal: 1, fast: 0.45 };
+    const savedSpeed = localStorage.getItem('wizardchess.autoSpeed');
+    let autoSpeed = AUTO_SPEEDS.includes(savedSpeed) ? savedSpeed : 'normal';
 
     // Multiplayer State
     let roomCode = null;
@@ -4664,6 +4669,7 @@ export function initWizardChess() {
         mode: gameMode,
         whiteAiId,
         blackAiId,
+        autoSpeed,
         playerColor,
         white: sideAiSummary('w'),
         black: sideAiSummary('b')
@@ -4702,6 +4708,15 @@ export function initWizardChess() {
         try { localStorage.setItem('wizardchess.autoBlack', found.id); } catch (err) {}
       }
       // Note: per-side auto levels must not overwrite the single-player AI difficulty.
+      dispatchAutoPlayChange();
+      if (gameMode === 'auto') maybeScheduleAIMove();
+      return getAutoPlayState();
+    }
+
+    function setAutoSpeed(speed) {
+      if (!AUTO_SPEEDS.includes(speed)) return getAutoPlayState();
+      autoSpeed = speed;
+      try { localStorage.setItem('wizardchess.autoSpeed', speed); } catch (err) {}
       dispatchAutoPlayChange();
       if (gameMode === 'auto') maybeScheduleAIMove();
       return getAutoPlayState();
@@ -5634,7 +5649,10 @@ export function initWizardChess() {
       const aiColor = playerColor === 'w' ? 'b' : 'w';
       if (!isAuto && currentTurn !== aiColor) return;
 
-      const delayMs = getSideAiProfile(currentTurn).thinkDelayMs || 540;
+      const baseDelay = getSideAiProfile(currentTurn).thinkDelayMs || 540;
+      const delayMs = isAuto
+        ? baseDelay * (AUTO_SPEED_MULTIPLIER[autoSpeed] || 1)
+        : baseDelay;
       aiTimer = setTimeout(() => {
         aiTimer = null;
         if (
@@ -7321,6 +7339,7 @@ export function initWizardChess() {
       setAutoPlayMode,
       getAutoPlayState,
       setSideAIDifficulty,
+      setAutoSpeed,
       getMoveHistory,
       inspectHistoryMove,
       exitHistoryReview,
@@ -7406,6 +7425,7 @@ export function initWizardChess() {
         gameMode,
         whiteAiId,
         blackAiId,
+        autoSpeed,
         scriptedGameActive,
         scriptDeviated,
         scriptMovesCount: scriptMoves.length,

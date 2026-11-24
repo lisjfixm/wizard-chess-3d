@@ -93,8 +93,9 @@ interface WizardChessApi {
   setAIDifficulty?: (id: string) => AIDifficultyLevel;
   getAIDifficulty?: () => AIDifficultyLevel;
   setAutoPlayMode?: (enabled: boolean) => { mode: string; whiteAiId: string; blackAiId: string };
-  getAutoPlayState?: () => { mode: string; whiteAiId: string; blackAiId: string };
+  getAutoPlayState?: () => { mode: string; whiteAiId: string; blackAiId: string; autoSpeed: string };
   setSideAIDifficulty?: (color: 'w' | 'b', id: string) => { whiteAiId: string; blackAiId: string };
+  setAutoSpeed?: (speed: string) => { autoSpeed: string };
   getMoveHistory?: () => MoveHistoryState;
   inspectHistoryMove?: (index: number) => boolean;
   exitHistoryReview?: (restoreCamera?: boolean) => boolean;
@@ -125,6 +126,7 @@ export default function App() {
   const [autoPlay, setAutoPlay] = useState<'single' | 'auto'>('single');
   const [whiteAiId, setWhiteAiId] = useState<string>('amateur');
   const [blackAiId, setBlackAiId] = useState<string>('amateur');
+  const [autoSpeed, setAutoSpeed] = useState<string>('normal');
   const [aiSettingsCollapsed, setAiSettingsCollapsed] = useState(false);
   const [historyCollapsed, setHistoryCollapsed] = useState(false);
   const [insightCollapsed, setInsightCollapsed] = useState(false);
@@ -172,6 +174,7 @@ export default function App() {
         mode: string;
         whiteAiId?: string;
         blackAiId?: string;
+        autoSpeed?: string;
       }>;
       const detail = customEvent.detail;
       if (!detail) return;
@@ -180,6 +183,7 @@ export default function App() {
       }
       if (detail.whiteAiId) setWhiteAiId(detail.whiteAiId);
       if (detail.blackAiId) setBlackAiId(detail.blackAiId);
+      if (detail.autoSpeed) setAutoSpeed(detail.autoSpeed);
     };
     const handleSceneModeChange = (e: Event) => {
       const customEvent = e as CustomEvent<{ mode: 'castle' | 'starfield' }>;
@@ -228,6 +232,7 @@ export default function App() {
       if (auto?.mode === 'auto' || auto?.mode === 'single') setAutoPlay(auto.mode);
       if (auto?.whiteAiId) setWhiteAiId(auto.whiteAiId);
       if (auto?.blackAiId) setBlackAiId(auto.blackAiId);
+      if (auto?.autoSpeed) setAutoSpeed(auto.autoSpeed);
     }
 
     return () => {
@@ -338,6 +343,12 @@ export default function App() {
     if (color === 'w') setWhiteAiId(id);
     else setBlackAiId(id);
     getWizardChessApi()?.setSideAIDifficulty?.(color, id);
+  };
+
+  const handleSelectSpeed = (speed: string) => {
+    if (!['slow', 'normal', 'fast'].includes(speed)) return;
+    setAutoSpeed(speed);
+    getWizardChessApi()?.setAutoSpeed?.(speed);
   };
 
   const handleChangeLang = (next: string) => {
@@ -764,6 +775,19 @@ export default function App() {
                           {t('ai.elo', { elo: sideAiLevel(blackAiId).elo })}
                         </span>
                       </div>
+                      <label className="ai-side-label">
+                        <span>{t('ai.speed')}</span>
+                        <select
+                          className="lang-select ai-side-select"
+                          value={autoSpeed}
+                          aria-label={t('ai.speed')}
+                          onChange={(e) => handleSelectSpeed(e.target.value)}
+                        >
+                          <option value="slow">{t('ai.speedSlow')}</option>
+                          <option value="normal">{t('ai.speedNormal')}</option>
+                          <option value="fast">{t('ai.speedFast')}</option>
+                        </select>
+                      </label>
                     </>
                   ) : (
                     <>
