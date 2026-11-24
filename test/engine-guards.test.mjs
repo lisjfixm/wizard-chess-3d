@@ -33,3 +33,18 @@ test('resetChessBoard clears timers, tweens, history and review state', () => {
     assert.ok(body.includes(needle), `resetChessBoard missing cleanup: ${needle}`);
   }
 });
+
+test('Draco decoder is wired and shipped for the compressed cathedral', () => {
+  assert.ok(engine.includes("import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'"), 'DRACOLoader import missing');
+  assert.ok(engine.includes("dracoLoader.setDecoderPath('./draco/')"), 'decoder path must stay relative for Pages subpath');
+  assert.ok(engine.includes('gltfLoader.setDRACOLoader(dracoLoader)'), 'GLTFLoader must use the Draco decoder');
+  for (const f of ['draco_decoder.js', 'draco_decoder.wasm', 'draco_wasm_wrapper.js']) {
+    assert.ok(fs.existsSync(path.join(ROOT, 'public/draco', f)), `public/draco/${f} missing`);
+  }
+  const b64 = fs.readFileSync(path.join(ROOT, 'public/assets/glb/option8_cathedral.glb.gz.b64'), 'utf-8').trim();
+  const raw = Buffer.from(b64, 'base64');
+  // gzip magic 1f 8b; decompressed GLB must declare the Draco extension
+  assert.equal(raw[0], 0x1f);
+  assert.equal(raw[1], 0x8b);
+  assert.ok(b64.length < 7_000_000, 'cathedral payload should stay under 7MB base64 after Draco');
+});

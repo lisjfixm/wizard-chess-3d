@@ -1,6 +1,7 @@
 import * as THREE_NS from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import {
   detectInitialLanguage,
@@ -2207,6 +2208,11 @@ export function initWizardChess() {
     // Asset Loading (Cathedral GLB + 12 Rigged Piece GLBs)
     // =========================================================================
     const gltfLoader = new GLTFLoader();
+    // Cathedral geometry is Draco-compressed; decoder files live in public/draco/
+    // and are fetched lazily only when a KHR_draco_mesh_compression primitive is parsed.
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('./draco/');
+    gltfLoader.setDRACOLoader(dracoLoader);
     const pieceTemplates = {};
     const activeMixers = [];
     const shatterDebris = [];
