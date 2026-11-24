@@ -1,6 +1,8 @@
 # Wizard Chess 3D（巫師棋 3D）
 
-互動式 3D 哥德式大教堂巫師棋：精雕石材棋子、電影級近戰吃子動畫、碎石物理特效，以及七階單人 AI 對弈。
+互動式 3D 哥德式大教堂巫師棋：精雕石材棋子、電影級近戰吃子動畫、碎石物理特效，以及 11 階 AI 對弈。
+
+功能：單人／雙人對弈、雙 AI 觀戰（可分別設定兩側棋力與觀戰步速）、城堡／星空雙場景、七檔畫質、四語介面。
 
 技術棧：React 19 + Vite 8 + Three.js 0.170。
 
@@ -56,3 +58,15 @@ npm run preview
 ## 部署
 
 建置產物位於 `dist/`，使用相對路徑（`vite.config.ts` 中 `base: './'`），可直接部署至 GitHub Pages 專案子路徑。
+
+`main` 分支存放原始碼；`gh-pages` 根目錄存放建置產物（含 `.nojekyll`）。部署時將 `dist/` 內容複製至 `gh-pages` 並推送，Pages 約一分鐘內生效。
+
+## 公開 API
+
+引擎掛載於 `window.wizardChess`，常用介面：
+
+- 對局：`setAutoPlayMode`、`getAutoPlayState`、`setSideAIDifficulty`、`setAutoSpeed`、`setAIDifficulty`、`getAIDifficulty`
+- 外觀：`setSceneMode`、`getSceneMode`、`setQualityLevel`、`getQualityLevel`、`setEffectsEnabled`、`getEffectsEnabled`
+- 歷史：`getMoveHistory`、`inspectHistoryMove`、`exitHistoryReview`、`analyzeHistoryMove`
+
+狀態變更會廣播 `wizardchess:autoplaychange`、`effectschange`、`aidifficultychange`、`historychange`、`scenemodechange`、`qualitychange`、`languagechange` 事件。
