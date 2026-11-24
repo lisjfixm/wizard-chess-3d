@@ -805,6 +805,7 @@ export default function App() {
                         className={`hud-btn auto-pause-btn ${autoPaused ? 'active' : ''}`}
                         id="btn-auto-pause"
                         aria-pressed={autoPaused}
+                        title={`${autoPaused ? t('ai.resume') : t('ai.pause')} [P]`}
                         onClick={handleToggleAutoPause}
                       >
                         {autoPaused ? t('ai.resume') : t('ai.pause')}

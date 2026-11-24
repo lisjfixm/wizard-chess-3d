@@ -6204,6 +6204,11 @@ export function initWizardChess() {
         e.preventDefault();
         toggleUI();
       }
+
+      if (e.code === 'KeyP' && gameMode === 'auto') {
+        e.preventDefault();
+        setAutoPaused(!autoPaused);
+      }
     });
 
     window.addEventListener('keyup', (e) => {
