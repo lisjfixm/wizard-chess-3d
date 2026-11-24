@@ -36,6 +36,29 @@ test('Quality tiers are consistent across engine, React options and i18n', () =>
   }
 });
 
+test('getState exposes the key HUD-facing state fields', () => {
+  const engine = fs.readFileSync(path.join(ROOT, 'src/wizardChessEngine.js'), 'utf-8');
+  const stateMatch = engine.match(/getState:\s*\(\)\s*=>\s*\(\{([\s\S]*?)\n\s*\}\)/);
+  assert.ok(stateMatch, 'getState not found');
+  const stateBody = stateMatch[1];
+  for (const field of [
+    'gameMode', 'whiteAiId', 'blackAiId', 'autoSpeed', 'playerColor',
+    'currentTurn', 'gameOver', 'effectsEnabled', 'sceneMode', 'quality'
+  ]) {
+    assert.ok(stateBody.includes(field), `getState missing field ${field}`);
+  }
+});
+
+test('Core public API surface is registered on window.wizardChess', () => {
+  const engine = fs.readFileSync(path.join(ROOT, 'src/wizardChessEngine.js'), 'utf-8');
+  for (const api of [
+    'setAutoPlayMode', 'getAutoPlayState', 'setSideAIDifficulty', 'setAutoSpeed',
+    'setEffectsEnabled', 'getEffectsEnabled', 'setQualityLevel', 'getQualityLevel'
+  ]) {
+    assert.ok(engine.includes(api), `wizardChess API ${api} missing`);
+  }
+});
+
 test('Ultra preset carries the enriched cosmic layers', () => {
   const engine = fs.readFileSync(path.join(ROOT, 'src/wizardChessEngine.js'), 'utf-8');
   const ultraMatch = engine.match(/'ultra':\s*\{([^}]+)\}/);
