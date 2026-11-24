@@ -965,6 +965,13 @@ export default function App() {
                                 historyState.focusedIndex === pair.white.index ? 'active' : ''
                               } ${pair.white.capture ? 'capture' : ''}`}
                               onClick={() => handleInspectMove(pair.white!.index)}
+                              aria-current={historyState.focusedIndex === pair.white.index ? 'true' : undefined}
+                              aria-label={t('history.inspectTitle', {
+                                n: pair.white.index + 1,
+                                side: sideLabel(pair.white.color),
+                                from: pair.white.fromSq,
+                                to: pair.white.toSq
+                              })}
                               title={t('history.inspectTitle', {
                                 n: pair.white.index + 1,
                                 side: sideLabel(pair.white.color),
@@ -984,6 +991,13 @@ export default function App() {
                                 historyState.focusedIndex === pair.black.index ? 'active' : ''
                               } ${pair.black.capture ? 'capture' : ''}`}
                               onClick={() => handleInspectMove(pair.black!.index)}
+                              aria-current={historyState.focusedIndex === pair.black.index ? 'true' : undefined}
+                              aria-label={t('history.inspectTitle', {
+                                n: pair.black.index + 1,
+                                side: sideLabel(pair.black.color),
+                                from: pair.black.fromSq,
+                                to: pair.black.toSq
+                              })}
                               title={t('history.inspectTitle', {
                                 n: pair.black.index + 1,
                                 side: sideLabel(pair.black.color),

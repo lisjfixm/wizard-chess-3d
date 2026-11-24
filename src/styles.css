@@ -1600,3 +1600,14 @@ body.cinematic-ui-hidden #hud-bottom {
   margin: 4px 0;
   border-radius: 10px;
 }
+
+/* Respect the user's reduced-motion preference for HUD transitions */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
