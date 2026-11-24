@@ -966,6 +966,10 @@ export function translate(lang, key, vars) {
   return raw;
 }
 
+export function dictionaryKeys(lang) {
+  return dict[lang] ? Object.keys(dict[lang]) : [];
+}
+
 export function createTranslator(lang) {
   return function t(key, vars) {
     return translate(lang, key, vars);

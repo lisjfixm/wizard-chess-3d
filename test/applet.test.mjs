@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { translate } from '../src/i18n.js';
+import { translate, dictionaryKeys } from '../src/i18n.js';
 
 const ROOT = process.cwd();
 
@@ -65,6 +65,23 @@ test('i18n translate falls back to key and substitutes placeholders', () => {
   // Placeholder substitution works when vars are provided.
   const withVar = translate('en', 'ai.elo', { elo: 1450 });
   assert.ok(String(withVar).includes('1450'), 'elo placeholder not substituted');
+});
+
+test('i18n dictionary keys are symmetric across all four languages and every entry is non-empty', () => {
+  const langs = ['zh-CN', 'zh-TW', 'en', 'ja'];
+  const keySets = Object.fromEntries(langs.map((l) => [l, new Set(dictionaryKeys(l))]));
+  const reference = keySets['en'];
+
+  for (const lang of langs) {
+    assert.equal(keySets[lang].size, reference.size, `key count mismatch in ${lang}`);
+    for (const key of reference) {
+      assert.ok(keySets[lang].has(key), `key "${key}" missing in ${lang}`);
+    }
+    for (const key of keySets[lang]) {
+      const text = translate(lang, key);
+      assert.ok(typeof text === 'string' && text.trim().length > 0, `empty entry "${key}" in ${lang}`);
+    }
+  }
 });
 
 test('All 7 compressed 3D assets (.glb.gz.b64) decode and gunzip to valid glTF 2.0 binary models', () => {
