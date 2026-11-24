@@ -68,7 +68,7 @@ const dict = {
     'actions.controls': '控制项',
     'ui.expand': '展开',
     'ui.collapse': '收起',
-    'actions.controlsHint': '操作说明：点击棋子移动 • 左键拖曳：旋转视角 • 右键拖曳：平移 • 滚轮：缩放 • WASD + R/F：自由飞行视角 • H：隐藏介面',
+    'actions.controlsHint': '操作说明：点击棋子移动 • 左键拖曳：旋转视角 • 右键拖曳：平移 • 滚轮：缩放 • WASD + R/F：自由飞行视角 • H：隐藏介面 • P：暂停观战',
     'actions.touchHint': '触控操作：点击棋子移动 • 单指拖曳：旋转视角 • 双指拖曳：平移画面 • 双指缩放：调整远近',
 
     'sections.ops': '对局操作',
@@ -297,7 +297,7 @@ const dict = {
     'actions.controls': '控制項',
     'ui.expand': '展開',
     'ui.collapse': '收合',
-    'actions.controlsHint': '操作說明：點擊棋子移動 • 左鍵拖曳：旋轉視角 • 右鍵拖曳：平移 • 滾輪：縮放 • WASD + R/F：自由飛行視角 • H：隱藏介面',
+    'actions.controlsHint': '操作說明：點擊棋子移動 • 左鍵拖曳：旋轉視角 • 右鍵拖曳：平移 • 滾輪：縮放 • WASD + R/F：自由飛行視角 • H：隱藏介面 • P：暫停觀戰',
     'actions.touchHint': '觸控操作：點擊棋子移動 • 單指拖曳：旋轉視角 • 雙指拖曳：平移畫面 • 雙指縮放：調整遠近',
 
     'sections.ops': '對局操作',
@@ -526,7 +526,7 @@ const dict = {
     'actions.controls': 'Controls',
     'ui.expand': 'Expand',
     'ui.collapse': 'Collapse',
-    'actions.controlsHint': 'Controls: Click a piece to move • Left-drag: orbit • Right-drag: pan • Wheel: zoom • WASD + R/F: free flight • H: hide UI',
+    'actions.controlsHint': 'Controls: Click a piece to move • Left-drag: orbit • Right-drag: pan • Wheel: zoom • WASD + R/F: free flight • H: hide UI • P: pause spectating',
     'actions.touchHint': 'Touch: Tap a piece to move • One finger: orbit • Two fingers: pan • Pinch: zoom',
 
     'sections.ops': 'Game Actions',
@@ -755,7 +755,7 @@ const dict = {
     'actions.controls': 'コントロール',
     'ui.expand': '展開',
     'ui.collapse': '折りたたむ',
-    'actions.controlsHint': '操作：駒をクリックして移動 • 左ドラッグ：回転 • 右ドラッグ：パン • ホイール：ズーム • WASD + R/F：自由飛行 • H：UI を隠す',
+    'actions.controlsHint': '操作：駒をクリックして移動 • 左ドラッグ：回転 • 右ドラッグ：パン • ホイール：ズーム • WASD + R/F：自由飛行 • H：UI を隠す • P：観戦一時停止',
     'actions.touchHint': 'タッチ：駒をタップして移動 • 1 本指：回転 • 2 本指：パン • ピンチ：ズーム',
 
     'sections.ops': '対局操作',
