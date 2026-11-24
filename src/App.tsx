@@ -578,6 +578,7 @@ export default function App() {
             className="hud-btn active"
             id="btn-cam-player"
             title={t('actions.camPlayer')}
+            aria-pressed="true"
           >
             {t('actions.camPlayer')}
           </button>
@@ -585,6 +586,7 @@ export default function App() {
             className="hud-btn"
             id="btn-cam-top"
             title={t('actions.camTop')}
+            aria-pressed="false"
           >
             {t('actions.camTop')}
           </button>
@@ -592,6 +594,7 @@ export default function App() {
             className="hud-btn"
             id="btn-cam-side"
             title={t('actions.camSide')}
+            aria-pressed="false"
           >
             {t('actions.camSide')}
           </button>
@@ -599,6 +602,7 @@ export default function App() {
             className="hud-btn"
             id="btn-cam-wide"
             title={t('actions.camWide')}
+            aria-pressed="false"
           >
             {t('actions.camWide')}
           </button>
@@ -613,6 +617,7 @@ export default function App() {
             className={`hud-btn ${sceneMode === 'castle' ? 'active' : ''}`}
             id="btn-scene-castle"
             title={t('actions.sceneCastle')}
+            aria-pressed={sceneMode === 'castle'}
             onClick={() => handleSelectScene('castle')}
           >
             {t('actions.sceneCastle')}
@@ -621,6 +626,7 @@ export default function App() {
             className={`hud-btn ${sceneMode === 'starfield' ? 'active' : ''}`}
             id="btn-scene-star"
             title={t('actions.sceneStar')}
+            aria-pressed={sceneMode === 'starfield'}
             onClick={() => handleSelectScene('starfield')}
           >
             {t('actions.sceneStar')}

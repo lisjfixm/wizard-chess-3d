@@ -7039,7 +7039,10 @@ export function initWizardChess() {
     function setActiveCamButton(activeId) {
       for (const id of camButtons) {
         const el = document.getElementById(id);
-        if (el) el.classList.toggle('active', id === activeId);
+        if (el) {
+          el.classList.toggle('active', id === activeId);
+          el.setAttribute('aria-pressed', id === activeId ? 'true' : 'false');
+        }
       }
     }
 
